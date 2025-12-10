@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="School Bus Tracker - Multi-tenant bus tracking application">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Bus Tracker">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>School Bus Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <script>
+    // Google Maps API Key - Replace with your actual key
+    // Get your API key from: https://console.cloud.google.com/google/maps-apis
+    var googleMapsApiKey = "AIzaSyBW-309qQB6LeybBpwTwW7ePmW2wL2rSvM";
+  </script>
+  <!-- Load Google Maps API synchronously before Flutter app starts -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBW-309qQB6LeybBpwTwW7ePmW2wL2rSvM&loading=async"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    .loading-text {
+      color: #666;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading">
+    <div class="loading-text">Loading...</div>
+  </div>
+  <script>
+    {{flutter_js}}
+    {{flutter_build_config}}
+    
+    window.addEventListener('load', function(ev) {
+      // Check if service worker is available
+      var serviceWorkerSettings = null;
+      if (typeof serviceWorkerVersion !== 'undefined') {
+        serviceWorkerSettings = {
+          serviceWorkerVersion: serviceWorkerVersion,
+        };
+      }
+      
+      _flutter.loader.load({
+        serviceWorkerSettings: serviceWorkerSettings,
+      });
+    });
+  </script>
+</body>
+</html>
