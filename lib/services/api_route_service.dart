@@ -69,9 +69,8 @@ class ApiRouteService {
                   'latitude': s.latitude,
                   'longitude': s.longitude,
                   'order': s.order,
-                  if (s.estimatedArrivalMinutes != null)
-                    'estimated_arrival_minutes': s.estimatedArrivalMinutes,
-                  if (s.address != null) 'address': s.address,
+                  if (s.estimatedArrivalTime != null)
+                    'estimated_arrival_time': s.estimatedArrivalTime!.toIso8601String(),
                 }).toList(),
         },
       );
@@ -94,23 +93,34 @@ class ApiRouteService {
   }) async {
     try {
       final body = <String, dynamic>{};
-      if (name != null) body['name'] = name;
-      if (startTime != null) body['start_time'] = startTime;
-      if (endTime != null) body['end_time'] = endTime;
-      if (estimatedDurationMinutes != null)
+      if (name != null) {
+        body['name'] = name;
+      }
+      if (startTime != null) {
+        body['start_time'] = startTime;
+      }
+      if (endTime != null) {
+        body['end_time'] = endTime;
+      }
+      if (estimatedDurationMinutes != null) {
         body['estimated_duration_minutes'] = estimatedDurationMinutes;
-      if (totalDistanceKm != null) body['total_distance_km'] = totalDistanceKm;
-      if (routePolyline != null) body['route_polyline'] = routePolyline;
-      if (stops != null)
+      }
+      if (totalDistanceKm != null) {
+        body['total_distance_km'] = totalDistanceKm;
+      }
+      if (routePolyline != null) {
+        body['route_polyline'] = routePolyline;
+      }
+      if (stops != null) {
         body['stops'] = stops.map((s) => {
               'name': s.name,
               'latitude': s.latitude,
               'longitude': s.longitude,
               'order': s.order,
-              if (s.estimatedArrivalMinutes != null)
-                'estimated_arrival_minutes': s.estimatedArrivalMinutes,
-              if (s.address != null) 'address': s.address,
+              if (s.estimatedArrivalTime != null)
+                'estimated_arrival_time': s.estimatedArrivalTime!.toIso8601String(),
             }).toList();
+      }
 
       final response = await _apiClient.put('/routes/$id', body: body);
       return _parseRoute(response);
@@ -158,13 +168,10 @@ class ApiRouteService {
     return Route(
       id: data['id'] as String,
       name: data['name'] as String,
-      startTime: data['start_time'] as String,
-      endTime: data['end_time'] as String,
-      estimatedDurationMinutes: data['estimated_duration_minutes'] as int?,
-      totalDistanceKm: (data['total_distance_km'] as num?)?.toDouble(),
+      organizationId: data['organization_id'] as String? ?? '',
+      startTime: DateTime.parse(data['start_time'] as String),
+      endTime: DateTime.parse(data['end_time'] as String),
       assignedBusId: data['assigned_bus_id'] as String?,
-      isActive: data['is_active'] as bool? ?? true,
-      routePolyline: data['route_polyline'] as String?,
       stops: stops,
     );
   }
@@ -172,13 +179,14 @@ class ApiRouteService {
   Stop _parseStop(Map<String, dynamic> data) {
     return Stop(
       id: data['id'] as String,
-      routeId: data['route_id'] as String,
       name: data['name'] as String,
       latitude: (data['latitude'] as num).toDouble(),
       longitude: (data['longitude'] as num).toDouble(),
       order: (data['order'] as num).toInt(),
-      estimatedArrivalMinutes: data['estimated_arrival_minutes'] as int?,
-      address: data['address'] as Map<String, dynamic>?,
+      estimatedArrivalTime: data['estimated_arrival_time'] != null
+          ? DateTime.parse(data['estimated_arrival_time'] as String)
+          : null,
+      isCompleted: data['is_completed'] as bool? ?? false,
     );
   }
 }

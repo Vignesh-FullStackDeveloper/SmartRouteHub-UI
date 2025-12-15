@@ -6,7 +6,6 @@ import '../../services/driver_service.dart';
 import '../../services/location_service.dart';
 import '../../models/route.dart';
 import '../../models/bus.dart';
-import '../../models/trip.dart';
 import 'driver_trip_event.dart';
 import 'driver_trip_state.dart';
 

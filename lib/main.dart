@@ -7,12 +7,9 @@ import 'blocs/auth/auth_bloc.dart';
 import 'blocs/auth/auth_event.dart';
 import 'blocs/auth/auth_state.dart';
 import 'blocs/org/org_bloc.dart';
-import 'blocs/org/org_event.dart';
-import 'blocs/org/org_state.dart';
 import 'services/notification_service.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/home/home_screen.dart';
-import 'models/user.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

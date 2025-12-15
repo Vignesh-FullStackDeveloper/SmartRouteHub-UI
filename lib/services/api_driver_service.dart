@@ -16,7 +16,9 @@ class ApiDriverService {
   }) async {
     try {
       final queryParams = <String, String>{};
-      if (isActive != null) queryParams['is_active'] = isActive.toString();
+      // Note: is_active filter removed as users table doesn't have this column
+      // Filtering should be done on the client side if needed
+      // if (isActive != null) queryParams['is_active'] = isActive.toString();
       if (hasBus != null) queryParams['has_bus'] = hasBus.toString();
 
       final response = await _apiClient.get(

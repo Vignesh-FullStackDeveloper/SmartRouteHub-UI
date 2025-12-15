@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../services/bus_service.dart';
-import '../../services/route_service.dart';
-import '../../services/driver_service.dart';
+import '../../services/api_bus_service.dart';
+import '../../services/api_route_service.dart';
+import '../../services/api_driver_service.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart' as models;
 import '../../models/user.dart';
@@ -11,7 +11,6 @@ import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../core/utils/permission_checker.dart';
 import '../../core/constants/permissions.dart';
-import '../../widgets/permission_wrapper.dart';
 
 /// Bus and Route management screen with modern UI
 class BusRouteManagementScreen extends StatefulWidget {
@@ -24,9 +23,9 @@ class BusRouteManagementScreen extends StatefulWidget {
 
 class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
     with SingleTickerProviderStateMixin {
-  final BusService _busService = BusService();
-  final RouteService _routeService = RouteService();
-  final DriverService _driverService = DriverService();
+  final ApiBusService _busService = ApiBusService();
+  final ApiRouteService _routeService = ApiRouteService();
+  final ApiDriverService _driverService = ApiDriverService();
   late TabController _tabController;
   List<Bus> _buses = [];
   List<models.Route> _routes = [];
@@ -50,18 +49,32 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
-    final buses = await _busService.getBusesByOrganization('org_1');
-    final routes = await _routeService.getRoutesByOrganization('org_1');
-    final drivers = await _driverService.getDriversByOrganization('org_1');
-    setState(() {
-      _buses = buses;
-      _routes = routes;
-      _drivers = drivers;
-      _isLoading = false;
-    });
+    try {
+      final buses = await _busService.getBuses();
+      final routes = await _routeService.getRoutes();
+      final drivers = await _driverService.getDrivers();
+      if (!mounted) return;
+      setState(() {
+        _buses = buses;
+        _routes = routes;
+        _drivers = drivers;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
@@ -172,6 +185,8 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
   Widget _buildBusCard(Bus bus, int index) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: () {
           final authState = context.read<AuthBloc>().state;
@@ -182,16 +197,29 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
             }
           }
         },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                bus.isActive 
+                  ? Colors.orange.shade50 
+                  : Colors.grey.shade50,
+                Colors.white,
+              ],
+            ),
+          ),
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Hero(
                 tag: 'bus_${bus.id}',
                 child: Container(
-                  width: 56,
-                  height: 56,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -199,9 +227,16 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                         bus.isActive ? Colors.deepOrange : Colors.grey[700]!,
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (bus.isActive ? Colors.orange : Colors.grey).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.directions_bus, color: Colors.white),
+                  child: const Icon(Icons.directions_bus, color: Colors.white, size: 32),
                 ),
               ),
               const SizedBox(width: 16),
@@ -215,78 +250,50 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                           child: Text(
                             bus.busNumber,
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: bus.isActive
-                                ? Colors.green[100]
-                                : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(12),
+                            gradient: LinearGradient(
+                              colors: bus.isActive
+                                  ? [Colors.green.shade400, Colors.green.shade600]
+                                  : [Colors.grey.shade400, Colors.grey.shade600],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (bus.isActive ? Colors.green : Colors.grey).withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Text(
-                            bus.isActive ? 'Active' : 'Inactive',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: bus.isActive
-                                  ? Colors.green[800]
-                                  : Colors.grey[700],
+                            bus.isActive ? 'ACTIVE' : 'INACTIVE',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.people, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Capacity: ${bus.capacity}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 8),
+                    _buildBusInfoRow(Icons.people_outline, 'Capacity: ${bus.capacity} passengers'),
                     if (bus.driverId != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.person, size: 14, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Driver: ${bus.driverId}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 6),
+                      _buildBusInfoRow(Icons.person_outline, 'Driver assigned'),
                     ],
                     if (bus.assignedRouteId != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.route, size: 14, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Route: ${bus.assignedRouteId}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 6),
+                      _buildBusInfoRow(Icons.route_outlined, 'Route assigned'),
                     ],
                   ],
                 ),
@@ -297,7 +304,7 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                     return const SizedBox.shrink();
                   }
                   final user = authState.user;
-                  return Row(
+                  return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (PermissionChecker.hasPermission(user, Permissions.busUpdate))
@@ -317,7 +324,45 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBusInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRouteInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -366,20 +411,36 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
   }
 
   Widget _buildRouteCard(models.Route route, int index) {
+    final startTime = route.startTime.toString().substring(11, 16);
+    final endTime = route.endTime.toString().substring(11, 16);
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: () => _showRouteDetails(route),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.3),
+                Colors.white,
+              ],
+            ),
+          ),
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Hero(
                 tag: 'route_${route.id}',
                 child: Container(
-                  width: 56,
-                  height: 56,
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -387,56 +448,78 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                         Theme.of(context).colorScheme.tertiary,
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.route, color: Colors.white),
+                  child: const Icon(Icons.route, color: Colors.white, size: 32),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
                       route.name,
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+                    _buildRouteInfoRow(Icons.location_on_outlined, '${route.stops.length} Pickup Points'),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
+                        Icon(Icons.access_time_outlined, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
                         Text(
-                          '${route.stops.length} Stops',
+                          '$startTime - $endTime',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${route.startTime.toString().substring(11, 16)} - ${route.endTime.toString().substring(11, 16)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                        if (route.assignedBusId != null) ...[
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Bus Assigned',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade800,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.info, color: Colors.blue),
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.info_outline, color: Colors.blue),
+                ),
                 onPressed: () => _showRouteDetails(route),
               ),
             ],
@@ -597,29 +680,35 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                         ElevatedButton(
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
-                              if (bus == null) {
-                                final newBus = Bus(
-                                  id: 'bus_${DateTime.now().millisecondsSinceEpoch}',
-                                  busNumber: busNumberController.text,
-                                  capacity: int.parse(capacityController.text),
-                                  organizationId: 'org_1',
-                                  driverId: selectedDriverId,
-                                  assignedRouteId: selectedRouteId,
-                                  isActive: isActive,
-                                );
-                                await _busService.addBus(newBus);
-                              } else {
-                                final updatedBus = bus.copyWith(
-                                  busNumber: busNumberController.text,
-                                  capacity: int.parse(capacityController.text),
-                                  driverId: selectedDriverId,
-                                  assignedRouteId: selectedRouteId,
-                                  isActive: isActive,
-                                );
-                                await _busService.updateBus(updatedBus);
+                              try {
+                                if (bus == null) {
+                                  await _busService.createBus(
+                                    busNumber: busNumberController.text,
+                                    capacity: int.parse(capacityController.text),
+                                    driverId: selectedDriverId,
+                                    assignedRouteId: selectedRouteId,
+                                  );
+                                } else {
+                                  await _busService.updateBus(
+                                    bus.id,
+                                    busNumber: busNumberController.text,
+                                    capacity: int.parse(capacityController.text),
+                                    driverId: selectedDriverId,
+                                    assignedRouteId: selectedRouteId,
+                                    isActive: isActive,
+                                  );
+                                }
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                  _loadData();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: ${e.toString()}')),
+                                  );
+                                }
                               }
-                              Navigator.pop(context);
-                              _loadData();
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -773,9 +862,19 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
       ),
     );
 
-    if (confirmed == true) {
-      await _busService.deleteBus(id);
-      _loadData();
+    if (confirmed == true && mounted) {
+      try {
+        await _busService.deleteBus(id);
+        if (mounted) {
+          _loadData();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting bus: ${e.toString()}')),
+          );
+        }
+      }
     }
   }
 }

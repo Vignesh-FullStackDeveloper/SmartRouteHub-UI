@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../services/trip_service.dart';
-import '../../services/bus_service.dart';
-import '../../services/route_service.dart';
-import '../../services/student_service.dart';
+import '../../services/api_trip_service.dart';
+import '../../services/api_bus_service.dart';
+import '../../services/api_route_service.dart';
+import '../../services/api_student_service.dart';
 import '../../models/trip.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart' as models;
@@ -18,10 +18,10 @@ class LiveMonitoringScreen extends StatefulWidget {
 }
 
 class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
-  final TripService _tripService = TripService();
-  final BusService _busService = BusService();
-  final RouteService _routeService = RouteService();
-  final StudentService _studentService = StudentService();
+  final ApiTripService _tripService = ApiTripService();
+  final ApiBusService _busService = ApiBusService();
+  final ApiRouteService _routeService = ApiRouteService();
+  final ApiStudentService _studentService = ApiStudentService();
   GoogleMapController? _mapController;
   List<Trip> _activeTrips = [];
   List<Bus> _allBuses = [];
@@ -31,6 +31,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   models.Route? _selectedRoute;
   int _passengerCount = 0;
   bool _isLoading = true;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -41,72 +42,75 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   }
 
   void _startAutoRefresh() {
+    if (_isDisposed) return;
     Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         _loadActiveTrips();
         _startAutoRefresh();
       }
     });
   }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _mapController?.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeData() async {
     await _loadAllBuses();
     await _loadActiveTrips();
-    // Create some dummy active trips if none exist
-    if (_activeTrips.isEmpty && _allBuses.isNotEmpty) {
-      await _createDummyTrips();
-      await _loadActiveTrips();
-    }
   }
 
-  Future<void> _createDummyTrips() async {
-    if (_allBuses.isEmpty) return;
-    
-    final bus = _allBuses.first;
-    final routes = await _routeService.getRoutesByOrganization('org_1');
-    if (routes.isNotEmpty) {
-      final route = routes.first;
-      await _tripService.startTrip(
-        busId: bus.id,
-        routeId: route.id,
-        driverId: bus.driverId ?? 'driver_1',
-        organizationId: 'org_1',
-        latitude: AppConstants.defaultLatitude,
-        longitude: AppConstants.defaultLongitude,
-      );
-    }
-  }
+  // Removed dummy trip creation - only use real data from API
 
   Future<void> _loadAllBuses() async {
-    final buses = await _busService.getBusesByOrganization('org_1');
-    setState(() {
-      _allBuses = buses;
-    });
+    try {
+      final buses = await _busService.getBuses();
+      if (!mounted || _isDisposed) return;
+      setState(() {
+        _allBuses = buses;
+      });
+    } catch (e) {
+      if (!mounted || _isDisposed) return;
+      // Silently fail for buses - not critical for live monitoring
+    }
   }
 
   Future<void> _loadActiveTrips() async {
+    if (!mounted || _isDisposed) return;
     setState(() {
       _isLoading = true;
     });
-    final trips = await _tripService.getActiveTrips('org_1');
-    setState(() {
-      _activeTrips = trips;
-      _isLoading = false;
-    });
-    _updateMarkers();
-    if (_selectedTrip != null) {
-      final updatedTrip = trips.firstWhere(
-        (t) => t.id == _selectedTrip!.id,
-        orElse: () => _selectedTrip!,
-      );
-      if (updatedTrip != _selectedTrip) {
-        _selectTrip(updatedTrip);
+    try {
+      final trips = await _tripService.getActiveTrips();
+      if (!mounted || _isDisposed) return;
+      setState(() {
+        _activeTrips = trips;
+        _isLoading = false;
+      });
+      _updateMarkers();
+      if (_selectedTrip != null) {
+        final updatedTrip = trips.firstWhere(
+          (t) => t.id == _selectedTrip!.id,
+          orElse: () => _selectedTrip!,
+        );
+        if (updatedTrip != _selectedTrip) {
+          _selectTrip(updatedTrip);
+        }
       }
+    } catch (e) {
+      if (!mounted || _isDisposed) return;
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _selectBus(Bus? bus) async {
     if (bus == null) {
+      if (!mounted || _isDisposed) return;
       setState(() {
         _selectedBus = null;
         _selectedTrip = null;
@@ -117,6 +121,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
       return;
     }
 
+    if (!mounted || _isDisposed) return;
     setState(() {
       _selectedBus = bus;
     });
@@ -129,7 +134,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
         busId: bus.id,
         routeId: bus.assignedRouteId ?? '',
         driverId: bus.driverId ?? '',
-        organizationId: 'org_1',
+        organizationId: '',
         status: TripStatus.notStarted,
         currentLatitude: AppConstants.defaultLatitude,
         currentLongitude: AppConstants.defaultLongitude,
@@ -141,25 +146,32 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     } else {
       // Load route and passenger info even if no active trip
       if (bus.assignedRouteId != null) {
-        final route = await _routeService.getRouteById(bus.assignedRouteId!);
-        final students = await _studentService.getStudentsByOrganization('org_1');
-        final passengers = students.where((s) => s.assignedBusId == bus.id).length;
-        
-        setState(() {
-          _selectedRoute = route;
-          _passengerCount = passengers;
-        });
+        try {
+          final route = await _routeService.getRouteById(bus.assignedRouteId!);
+          final students = await _studentService.getStudents();
+          final passengers = students.where((s) => s.assignedBusId == bus.id).length;
+          
+          if (!mounted || _isDisposed) return;
+          setState(() {
+            _selectedRoute = route;
+            _passengerCount = passengers;
+          });
+        } catch (e) {
+          // Silently fail - not critical
+        }
       }
     }
   }
 
   Future<void> _selectTrip(Trip trip) async {
+    if (!mounted || _isDisposed) return;
     setState(() {
       _selectedTrip = trip;
     });
 
     // Load bus details
     final bus = await _busService.getBusById(trip.busId);
+    if (!mounted || _isDisposed) return;
     setState(() {
       _selectedBus = bus;
     });
@@ -167,17 +179,23 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     // Load route details
     if (trip.routeId.isNotEmpty) {
       final route = await _routeService.getRouteById(trip.routeId);
+      if (!mounted || _isDisposed) return;
       setState(() {
         _selectedRoute = route;
       });
     }
 
     // Load passenger count
-    final students = await _studentService.getStudentsByOrganization('org_1');
-    final passengers = students.where((s) => s.assignedBusId == trip.busId).length;
-    setState(() {
-      _passengerCount = passengers;
-    });
+    try {
+      final students = await _studentService.getStudents();
+      final passengers = students.where((s) => s.assignedBusId == trip.busId).length;
+      if (!mounted || _isDisposed) return;
+      setState(() {
+        _passengerCount = passengers;
+      });
+    } catch (e) {
+      // Silently fail - not critical
+    }
 
     // Center map on trip location
     if (trip.currentLatitude != null && trip.currentLongitude != null) {

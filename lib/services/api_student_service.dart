@@ -129,12 +129,12 @@ class ApiStudentService {
       name: data['name'] as String,
       classGrade: data['class_grade'] as String,
       section: data['section'] as String,
+      organizationId: data['organization_id'] as String? ?? '',
       parentId: data['parent_id'] as String,
       parentContact: data['parent_contact'] as String,
       pickupPointId: data['pickup_point_id'] as String?,
       assignedBusId: data['assigned_bus_id'] as String?,
       assignedRouteId: data['assigned_route_id'] as String?,
-      isActive: data['is_active'] as bool? ?? true,
     );
   }
 }

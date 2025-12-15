@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'permission.dart';
 
 /// Permission reference (simplified for role)
 class PermissionRef extends Equatable {

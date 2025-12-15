@@ -85,11 +85,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         driverId: event.driverId,
         otp: event.otp,
       );
-      if (user != null) {
-        emit(AuthAuthenticated(user));
-      } else {
-        emit(const AuthError('Driver login failed'));
-      }
+      emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -108,11 +104,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         otp: event.otp,
         password: event.password,
       );
-      if (user != null) {
-        emit(AuthAuthenticated(user));
-      } else {
-        emit(const AuthError('Parent login failed'));
-      }
+      emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(e.toString()));
     }

@@ -2,13 +2,25 @@ import 'package:flutter/material.dart';
 
 /// Application theme configuration using Material 3 with modern design
 class AppTheme {
-  // Modern color palette
+  // Modern vibrant color palette (Instagram/GPay inspired)
   static const Color primaryColor = Color(0xFF6366F1); // Indigo
   static const Color secondaryColor = Color(0xFF8B5CF6); // Purple
-  static const Color accentColor = Color(0xFF06B6D4); // Cyan
+  static const Color accentColor = Color(0xFFEC4899); // Pink
   static const Color successColor = Color(0xFF10B981); // Green
   static const Color warningColor = Color(0xFFF59E0B); // Amber
   static const Color errorColor = Color(0xFFEF4444); // Red
+  
+  // Gradient colors
+  static const List<Color> primaryGradient = [
+    Color(0xFF6366F1),
+    Color(0xFF8B5CF6),
+    Color(0xFFEC4899),
+  ];
+  
+  static const List<Color> cardGradient = [
+    Color(0xFFFFFFFF),
+    Color(0xFFF8FAFC),
+  ];
 
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
@@ -23,54 +35,60 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       
-      // AppBar Theme
+      // AppBar Theme - Modern transparent style
       appBarTheme: AppBarTheme(
-        centerTitle: true,
+        centerTitle: false,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.grey[900],
         surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.transparent,
+        titleTextStyle: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[900],
+          letterSpacing: -0.5,
+        ),
       ),
 
-      // Card Theme
+      // Card Theme - Modern glassmorphism style
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.grey[200]!, width: 1),
+          borderRadius: BorderRadius.circular(20),
         ),
         color: Colors.white,
-        shadowColor: Colors.black.withOpacity(0.05),
+        shadowColor: Colors.black.withValues(alpha: 0.08),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        surfaceTintColor: Colors.transparent,
       ),
 
-      // Input Decoration Theme
+      // Input Decoration Theme - Modern rounded style
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.grey[50],
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: errorColor),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: errorColor, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: errorColor, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       ),
 
       // Elevated Button Theme
@@ -177,7 +195,7 @@ class AppTheme {
           side: BorderSide(color: Colors.grey[800]!, width: 1),
         ),
         color: Colors.grey[850],
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
 

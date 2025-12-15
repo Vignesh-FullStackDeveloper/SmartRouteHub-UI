@@ -117,10 +117,10 @@ class ApiBusService {
       id: data['id'] as String,
       busNumber: data['bus_number'] as String,
       capacity: (data['capacity'] as num).toInt(),
+      organizationId: data['organization_id'] as String? ?? '',
       driverId: data['driver_id'] as String?,
       assignedRouteId: data['assigned_route_id'] as String?,
       isActive: data['is_active'] as bool? ?? true,
-      metadata: data['metadata'] as Map<String, dynamic>?,
     );
   }
 }

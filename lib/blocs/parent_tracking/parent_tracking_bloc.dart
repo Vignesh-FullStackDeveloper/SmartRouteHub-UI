@@ -4,7 +4,6 @@ import '../../services/trip_service.dart';
 import '../../services/bus_service.dart';
 import '../../services/route_service.dart';
 import '../../services/location_service.dart';
-import '../../models/user.dart';
 import '../../models/student.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart';
@@ -108,7 +107,7 @@ class ParentTrackingBloc
     if (student.assignedRouteId != null) {
       route = await _routeService.getRouteById(student.assignedRouteId!);
       if (route != null && student.pickupPointId != null) {
-        final currentRoute = route!;
+        final currentRoute = route;
         pickupPoint = currentRoute.stops.firstWhere(
           (s) => s.id == student.pickupPointId,
           orElse: () => currentRoute.stops.first,

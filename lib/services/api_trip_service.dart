@@ -92,8 +92,6 @@ class ApiTripService {
   }
 
   Trip _parseTrip(Map<String, dynamic> data) {
-    final locationHistory = data['location_history'] as List<dynamic>?;
-    
     return Trip(
       id: data['id'] as String,
       organizationId: data['organization_id'] as String,
@@ -109,19 +107,10 @@ class ApiTripService {
           : null,
       currentLatitude: (data['current_latitude'] as num?)?.toDouble(),
       currentLongitude: (data['current_longitude'] as num?)?.toDouble(),
-      speedKmh: (data['speed_kmh'] as num?)?.toDouble(),
+      speed: (data['speed_kmh'] as num?)?.toDouble() ?? (data['speed'] as num?)?.toDouble(),
       lastUpdateTime: data['last_update_time'] != null
           ? DateTime.parse(data['last_update_time'] as String)
           : null,
-      passengerCount: (data['passenger_count'] as num?)?.toInt() ?? 0,
-      locationHistory: locationHistory
-              ?.map((l) => {
-                    'latitude': (l['latitude'] as num).toDouble(),
-                    'longitude': (l['longitude'] as num).toDouble(),
-                    'timestamp': DateTime.parse(l['recorded_at'] as String),
-                  })
-              .toList() ??
-          [],
     );
   }
 

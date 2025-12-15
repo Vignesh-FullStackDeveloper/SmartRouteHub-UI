@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/driver_service.dart';
-import '../../services/bus_service.dart';
-import '../../services/route_service.dart';
+import '../../services/api_driver_service.dart';
+import '../../services/api_bus_service.dart';
+import '../../services/api_route_service.dart';
 import '../../models/user.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart' as models;
@@ -18,9 +18,9 @@ class DriverManagementScreen extends StatefulWidget {
 
 class _DriverManagementScreenState extends State<DriverManagementScreen>
     with SingleTickerProviderStateMixin {
-  final DriverService _driverService = DriverService();
-  final BusService _busService = BusService();
-  final RouteService _routeService = RouteService();
+  final ApiDriverService _driverService = ApiDriverService();
+  final ApiBusService _busService = ApiBusService();
+  final ApiRouteService _routeService = ApiRouteService();
   List<DriverUser> _drivers = [];
   List<Bus> _buses = [];
   List<models.Route> _routes = [];
@@ -44,18 +44,32 @@ class _DriverManagementScreenState extends State<DriverManagementScreen>
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
-    final drivers = await _driverService.getDriversByOrganization('org_1');
-    final buses = await _busService.getBusesByOrganization('org_1');
-    final routes = await _routeService.getRoutesByOrganization('org_1');
-    setState(() {
-      _drivers = drivers;
-      _buses = buses;
-      _routes = routes;
-      _isLoading = false;
-    });
+    try {
+      final drivers = await _driverService.getDrivers();
+      final buses = await _busService.getBuses();
+      final routes = await _routeService.getRoutes();
+      if (!mounted) return;
+      setState(() {
+        _drivers = drivers;
+        _buses = buses;
+        _routes = routes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
@@ -258,6 +272,7 @@ class _DriverManagementScreenState extends State<DriverManagementScreen>
         TextEditingController(text: driver?.phone ?? '');
     final driverIdController =
         TextEditingController(text: driver?.driverId ?? '');
+    final passwordController = TextEditingController();
     String? selectedBusId = driver?.assignedBusId;
     String? selectedRouteId = driver?.assignedRouteId;
     bool isActive = driver?.isActive ?? true;
@@ -354,6 +369,27 @@ class _DriverManagementScreenState extends State<DriverManagementScreen>
                           keyboardType: TextInputType.phone,
                           validator: Validators.validatePhone,
                         ),
+                        if (driver == null) ...[
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: passwordController,
+                            decoration: const InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: Icon(Icons.lock),
+                              hintText: 'Minimum 6 characters',
+                            ),
+                            obscureText: true,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Password is required';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
                           value: selectedBusId,
@@ -415,35 +451,44 @@ class _DriverManagementScreenState extends State<DriverManagementScreen>
                         ElevatedButton(
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
-                              if (driver == null) {
-                                final newDriver = DriverUser(
-                                  id: 'driver_${DateTime.now().millisecondsSinceEpoch}',
-                                  name: nameController.text,
-                                  email: emailController.text,
-                                  phone: phoneController.text,
-                                  organizationId: 'org_1',
-                                  driverId: driverIdController.text,
-                                  assignedBusId: selectedBusId,
-                                  assignedRouteId: selectedRouteId,
-                                  isActive: isActive,
-                                );
-                                await _driverService.addDriver(newDriver);
-                              } else {
-                                final updatedDriver = DriverUser(
-                                  id: driver.id,
-                                  name: nameController.text,
-                                  email: emailController.text,
-                                  phone: phoneController.text,
-                                  organizationId: driver.organizationId,
-                                  driverId: driverIdController.text,
-                                  assignedBusId: selectedBusId,
-                                  assignedRouteId: selectedRouteId,
-                                  isActive: isActive,
-                                );
-                                await _driverService.updateDriver(updatedDriver);
+                              try {
+                                if (driver == null) {
+                                  await _driverService.createDriver(
+                                    name: nameController.text,
+                                    email: emailController.text,
+                                    password: passwordController.text,
+                                    driverId: driverIdController.text,
+                                    phone: phoneController.text.isNotEmpty
+                                        ? phoneController.text
+                                        : null,
+                                  );
+                                  // Assign bus/route if selected
+                                  // Note: Bus/route assignment might need separate API call
+                                } else {
+                                  await _driverService.updateDriver(
+                                    driver.id,
+                                    name: nameController.text,
+                                    email: emailController.text,
+                                    phone: phoneController.text.isNotEmpty
+                                        ? phoneController.text
+                                        : null,
+                                    driverId: driverIdController.text,
+                                    isActive: isActive,
+                                    assignedBusId: selectedBusId,
+                                    assignedRouteId: selectedRouteId,
+                                  );
+                                }
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                  _loadData();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: ${e.toString()}')),
+                                  );
+                                }
                               }
-                              Navigator.pop(context);
-                              _loadData();
                             }
                           },
                           style: ElevatedButton.styleFrom(

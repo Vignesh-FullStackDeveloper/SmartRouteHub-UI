@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../services/student_service.dart';
-import '../../services/bus_service.dart';
-import '../../services/route_service.dart';
+import '../../services/api_student_service.dart';
+import '../../services/api_bus_service.dart';
+import '../../services/api_route_service.dart';
 import '../../models/student.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart' as models;
@@ -25,9 +25,9 @@ class StudentManagementScreen extends StatefulWidget {
 
 class _StudentManagementScreenState extends State<StudentManagementScreen>
     with SingleTickerProviderStateMixin {
-  final StudentService _studentService = StudentService();
-  final BusService _busService = BusService();
-  final RouteService _routeService = RouteService();
+  final ApiStudentService _studentService = ApiStudentService();
+  final ApiBusService _busService = ApiBusService();
+  final ApiRouteService _routeService = ApiRouteService();
   List<Student> _students = [];
   List<Bus> _buses = [];
   List<models.Route> _routes = [];
@@ -51,18 +51,32 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
-    final students = await _studentService.getStudentsByOrganization('org_1');
-    final buses = await _busService.getBusesByOrganization('org_1');
-    final routes = await _routeService.getRoutesByOrganization('org_1');
-    setState(() {
-      _students = students;
-      _buses = buses;
-      _routes = routes;
-      _isLoading = false;
-    });
+    try {
+      final students = await _studentService.getStudents();
+      final buses = await _busService.getBuses();
+      final routes = await _routeService.getRoutes();
+      if (!mounted) return;
+      setState(() {
+        _students = students;
+        _buses = buses;
+        _routes = routes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   @override
@@ -98,13 +112,35 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.school_outlined,
-                              size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.grey[100]!,
+                                  Colors.grey[50]!,
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.school_outlined,
+                                size: 64, color: Colors.grey[400]),
+                          ),
+                          const SizedBox(height: 24),
                           Text(
                             'No students found',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Add your first student to get started',
+                            style: TextStyle(
+                              fontSize: 14,
                               color: Colors.grey[600],
                             ),
                           ),
@@ -118,10 +154,34 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                               if (!PermissionChecker.hasPermission(user, Permissions.studentCreate)) {
                                 return const SizedBox.shrink();
                               }
-                              return ElevatedButton.icon(
-                                onPressed: () => _showAddEditStudentDialog(),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add First Student'),
+                              return Container(
+                                margin: const EdgeInsets.only(top: 24),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Theme.of(context).colorScheme.primary,
+                                      Theme.of(context).colorScheme.secondary,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _showAddEditStudentDialog(),
+                                  icon: const Icon(Icons.add_rounded),
+                                  label: const Text('Add First Student', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -154,118 +214,179 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
   }
 
   Widget _buildStudentCard(Student student, int index) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () {
-          final authState = context.read<AuthBloc>().state;
-          if (authState is AuthAuthenticated) {
-            final user = authState.user;
-            if (PermissionChecker.hasPermission(user, Permissions.studentUpdate)) {
-              _showAddEditStudentDialog(student: student);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            Colors.grey[50]!,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            final authState = context.read<AuthBloc>().state;
+            if (authState is AuthAuthenticated) {
+              final user = authState.user;
+              if (PermissionChecker.hasPermission(user, Permissions.studentUpdate)) {
+                _showAddEditStudentDialog(student: student);
+              }
             }
-          }
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Hero(
-                tag: 'student_${student.id}',
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.secondary,
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.person, color: Colors.white),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      student.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+          },
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Hero(
+                  tag: 'student_${student.id}',
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.secondary,
+                          Theme.of(context).colorScheme.tertiary,
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${student.classGrade} - Section ${student.section}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.phone, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(
-                          student.parentContact,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    if (student.assignedBusId != null) ...[
-                      const SizedBox(height: 4),
+                    child: const Icon(Icons.person, color: Colors.white, size: 32),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        student.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${student.classGrade} - Section ${student.section}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.directions_bus,
-                              size: 14, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
+                          Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 6),
                           Text(
-                            'Bus: ${student.assignedBusId}',
+                            student.parentContact,
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                              fontSize: 13,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
+                      if (student.assignedBusId != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.directions_bus, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Bus: ${student.assignedBusId}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, authState) {
-                  if (authState is! AuthAuthenticated) {
-                    return const SizedBox.shrink();
-                  }
-                  final user = authState.user;
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (PermissionChecker.hasPermission(user, Permissions.studentUpdate))
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showAddEditStudentDialog(student: student),
-                        ),
-                      if (PermissionChecker.hasPermission(user, Permissions.studentDelete))
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteStudent(student.id),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, authState) {
+                    if (authState is! AuthAuthenticated) {
+                      return const SizedBox.shrink();
+                    }
+                    final user = authState.user;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (PermissionChecker.hasPermission(user, Permissions.studentUpdate))
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.edit_rounded, color: Colors.blue, size: 20),
+                              onPressed: () => _showAddEditStudentDialog(student: student),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        if (PermissionChecker.hasPermission(user, Permissions.studentDelete))
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.delete_rounded, color: Colors.red, size: 20),
+                              onPressed: () => _deleteStudent(student.id),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -298,12 +419,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
         child: Column(
           children: [
             Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 16),
+              width: 48,
+              height: 5,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
             Padding(
@@ -394,9 +515,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                               )),
                         ],
                         onChanged: (value) {
-                          setState(() {
-                            selectedBusId = value;
-                          });
+                          if (mounted) {
+                            setState(() {
+                              selectedBusId = value;
+                            });
+                          }
                         },
                       ),
                       const SizedBox(height: 16),
@@ -417,47 +540,93 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                               )),
                         ],
                         onChanged: (value) {
-                          setState(() {
-                            selectedRouteId = value;
-                          });
+                          if (mounted) {
+                            setState(() {
+                              selectedRouteId = value;
+                            });
+                          }
                         },
                       ),
                       const SizedBox(height: 32),
-                      ElevatedButton(
-                        onPressed: () async {
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context).colorScheme.primary,
+                              Theme.of(context).colorScheme.secondary,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () async {
                           if (formKey.currentState!.validate()) {
-                            if (student == null) {
-                              final newStudent = Student(
-                                id: 'student_${DateTime.now().millisecondsSinceEpoch}',
-                                name: nameController.text,
-                                classGrade: classController.text,
-                                section: sectionController.text,
-                                organizationId: 'org_1',
-                                parentId: 'parent_${DateTime.now().millisecondsSinceEpoch}',
-                                parentContact: parentContactController.text,
-                                assignedBusId: selectedBusId,
-                                assignedRouteId: selectedRouteId,
-                              );
-                              await _studentService.addStudent(newStudent);
-                            } else {
-                              final updatedStudent = student.copyWith(
-                                name: nameController.text,
-                                classGrade: classController.text,
-                                section: sectionController.text,
-                                parentContact: parentContactController.text,
-                                assignedBusId: selectedBusId,
-                                assignedRouteId: selectedRouteId,
-                              );
-                              await _studentService.updateStudent(updatedStudent);
+                            try {
+                              if (student == null) {
+                                // Get parentId from auth context or create placeholder
+                                final authState = context.read<AuthBloc>().state;
+                                String? parentId;
+                                if (authState is AuthAuthenticated) {
+                                  // For now, use a placeholder - in production, you'd create/fetch parent
+                                  parentId = 'parent_${DateTime.now().millisecondsSinceEpoch}';
+                                }
+                                
+                                await _studentService.createStudent(
+                                  name: nameController.text,
+                                  classGrade: classController.text,
+                                  section: sectionController.text,
+                                  parentId: parentId ?? 'temp_parent',
+                                  parentContact: parentContactController.text,
+                                  assignedBusId: selectedBusId,
+                                  assignedRouteId: selectedRouteId,
+                                );
+                              } else {
+                                await _studentService.updateStudent(
+                                  student.id,
+                                  name: nameController.text,
+                                  classGrade: classController.text,
+                                  section: sectionController.text,
+                                  parentContact: parentContactController.text,
+                                  assignedBusId: selectedBusId,
+                                  assignedRouteId: selectedRouteId,
+                                );
+                              }
+                              if (mounted) {
+                                Navigator.pop(context);
+                                _loadData();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: ${e.toString()}')),
+                                );
+                              }
                             }
-                            Navigator.pop(context);
-                            _loadData();
                           }
                         },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            student == null ? 'Add Student' : 'Update Student',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        child: Text(student == null ? 'Add Student' : 'Update Student'),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -494,9 +663,19 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
       ),
     );
 
-    if (confirmed == true) {
-      await _studentService.deleteStudent(id);
-      _loadData();
+    if (confirmed == true && mounted) {
+      try {
+        await _studentService.deleteStudent(id);
+        if (mounted) {
+          _loadData();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting student: ${e.toString()}')),
+          );
+        }
+      }
     }
   }
 }
