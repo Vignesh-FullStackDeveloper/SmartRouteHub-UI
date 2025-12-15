@@ -3,16 +3,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../blocs/admin_dashboard/admin_dashboard_bloc.dart';
 import '../../blocs/admin_dashboard/admin_dashboard_event.dart';
 import '../../blocs/admin_dashboard/admin_dashboard_state.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../blocs/org/org_bloc.dart';
 import '../../blocs/org/org_event.dart';
 import '../../blocs/org/org_state.dart';
 import '../../widgets/org_header.dart';
 import '../../widgets/stat_card.dart';
 import '../../models/user.dart';
+import '../../core/utils/permission_checker.dart';
+import '../../core/constants/permissions.dart';
 import 'student_management_screen.dart';
 import 'driver_management_screen.dart';
 import 'bus_route_management_screen.dart';
 import 'live_monitoring_screen.dart';
+import 'users_roles_permissions_screen.dart';
 import '../profile/profile_screen.dart';
 
 /// Admin dashboard screen
@@ -286,63 +291,7 @@ class AdminDashboardScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildActionCard(
-                    context,
-                    'Student Management',
-                    Icons.school,
-                    Colors.blue,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const StudentManagementScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildActionCard(
-                    context,
-                    'Driver Management',
-                    Icons.person,
-                    Colors.green,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DriverManagementScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildActionCard(
-                    context,
-                    'Bus & Route Management',
-                    Icons.map,
-                    Colors.orange,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const BusRouteManagementScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildActionCard(
-                    context,
-                    'Live Monitoring',
-                    Icons.location_on,
-                    Colors.red,
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LiveMonitoringScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                    _buildPermissionBasedActions(context),
                   const SizedBox(height: 16),
                   // Active trips
                   if (state.tripsInProgress.isNotEmpty) ...[
@@ -383,6 +332,144 @@ class AdminDashboardScreen extends StatelessWidget {
           }
 
         return const Center(child: Text('Unknown state'));
+      },
+    );
+  }
+
+  Widget _buildPermissionBasedActions(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        if (authState is! AuthAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final user = authState.user;
+        final actions = <Widget>[];
+
+        // Student Management - requires any student permission
+        if (PermissionChecker.hasAnyPermission(
+            user, Permissions.studentManagement)) {
+          actions.add(
+            _buildActionCard(
+              context,
+              'Student Management',
+              Icons.school,
+              Colors.blue,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StudentManagementScreen(),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        // Driver Management - requires user read permission
+        if (PermissionChecker.hasPermission(user, Permissions.userRead)) {
+          actions.add(
+            _buildActionCard(
+              context,
+              'Driver Management',
+              Icons.person,
+              Colors.green,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DriverManagementScreen(),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        // Bus & Route Management - requires any bus or route permission
+        if (PermissionChecker.hasAnyPermission(
+                user, Permissions.busManagement) ||
+            PermissionChecker.hasAnyPermission(
+                user, Permissions.routeManagement)) {
+          actions.add(
+            _buildActionCard(
+              context,
+              'Bus & Route Management',
+              Icons.map,
+              Colors.orange,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BusRouteManagementScreen(),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        // Live Monitoring - requires location read permission
+        if (PermissionChecker.hasPermission(user, Permissions.locationRead)) {
+          actions.add(
+            _buildActionCard(
+              context,
+              'Live Monitoring',
+              Icons.location_on,
+              Colors.red,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LiveMonitoringScreen(),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        // Users, Roles & Permissions - requires user, role, or permission read
+        if (PermissionChecker.hasPermission(user, Permissions.userRead) ||
+            PermissionChecker.hasPermission(user, Permissions.roleRead) ||
+            PermissionChecker.hasPermission(user, Permissions.permissionRead)) {
+          actions.add(
+            _buildActionCard(
+              context,
+              'Users, Roles & Permissions',
+              Icons.people,
+              Colors.purple,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const UsersRolesPermissionsScreen(),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        if (actions.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: Text(
+                'No actions available with your current permissions',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        return Column(children: actions);
       },
     );
   }

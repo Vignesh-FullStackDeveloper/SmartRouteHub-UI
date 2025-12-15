@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/student_service.dart';
 import '../../services/bus_service.dart';
 import '../../services/route_service.dart';
@@ -7,6 +8,11 @@ import '../../models/bus.dart';
 import '../../models/route.dart' as models;
 import '../../widgets/primary_button.dart';
 import '../../core/utils/validators.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../../core/utils/permission_checker.dart';
+import '../../core/constants/permissions.dart';
+import '../../widgets/permission_wrapper.dart';
 
 /// Student management screen with modern UI
 class StudentManagementScreen extends StatefulWidget {
@@ -65,10 +71,21 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
       appBar: AppBar(
         title: const Text('Student Management'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddEditStudentDialog(),
-            tooltip: 'Add Student',
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, authState) {
+              if (authState is! AuthAuthenticated) {
+                return const SizedBox.shrink();
+              }
+              final user = authState.user;
+              if (!PermissionChecker.hasPermission(user, Permissions.studentCreate)) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => _showAddEditStudentDialog(),
+                tooltip: 'Add Student',
+              );
+            },
           ),
         ],
       ),
@@ -92,10 +109,21 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => _showAddEditStudentDialog(),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add First Student'),
+                          BlocBuilder<AuthBloc, AuthState>(
+                            builder: (context, authState) {
+                              if (authState is! AuthAuthenticated) {
+                                return const SizedBox.shrink();
+                              }
+                              final user = authState.user;
+                              if (!PermissionChecker.hasPermission(user, Permissions.studentCreate)) {
+                                return const SizedBox.shrink();
+                              }
+                              return ElevatedButton.icon(
+                                onPressed: () => _showAddEditStudentDialog(),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add First Student'),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -129,7 +157,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => _showAddEditStudentDialog(student: student),
+        onTap: () {
+          final authState = context.read<AuthBloc>().state;
+          if (authState is AuthAuthenticated) {
+            final user = authState.user;
+            if (PermissionChecker.hasPermission(user, Permissions.studentUpdate)) {
+              _showAddEditStudentDialog(student: student);
+            }
+          }
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -206,13 +242,28 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.blue),
-                onPressed: () => _showAddEditStudentDialog(student: student),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () => _deleteStudent(student.id),
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, authState) {
+                  if (authState is! AuthAuthenticated) {
+                    return const SizedBox.shrink();
+                  }
+                  final user = authState.user;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (PermissionChecker.hasPermission(user, Permissions.studentUpdate))
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _showAddEditStudentDialog(student: student),
+                        ),
+                      if (PermissionChecker.hasPermission(user, Permissions.studentDelete))
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteStudent(student.id),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

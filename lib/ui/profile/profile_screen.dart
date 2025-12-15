@@ -125,11 +125,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await _apiAuthService.logout();
         if (mounted) {
           context.read<AuthBloc>().add(LogoutRequested());
+          // Clear navigation stack - AppNavigator will show login screen
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       } catch (e) {
         // Logout anyway even if API call fails
         if (mounted) {
           context.read<AuthBloc>().add(LogoutRequested());
+          // Clear navigation stack - AppNavigator will show login screen
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       }
     }

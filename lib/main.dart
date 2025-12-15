@@ -11,9 +11,7 @@ import 'blocs/org/org_event.dart';
 import 'blocs/org/org_state.dart';
 import 'services/notification_service.dart';
 import 'ui/auth/login_screen.dart';
-import 'ui/admin/admin_dashboard_screen.dart';
-import 'ui/driver/driver_dashboard_screen.dart';
-import 'ui/parent/parent_dashboard_screen.dart';
+import 'ui/home/home_screen.dart';
 import 'models/user.dart';
 
 void main() async {
@@ -81,21 +79,12 @@ class AppNavigator extends StatelessWidget {
         if (state is AuthAuthenticated) {
           final user = state.user;
           
-          // Load organization for branding (user.organizationId is the UUID)
-          // Only load if organizationId is not empty
-          if (user.organizationId.isNotEmpty) {
-            context.read<OrgBloc>().add(LoadOrganizationById(user.organizationId));
-          }
+          // Load organization only if user has permission to view it
+          // Organization will be loaded in HomeScreen if user has permission
+          // No need to load here to avoid unnecessary API calls
 
-          // Route based on user role
-          switch (user.role) {
-            case UserRole.admin:
-              return AdminDashboardScreen(user: user as AdminUser);
-            case UserRole.driver:
-              return DriverDashboardScreen(user: user as DriverUser);
-            case UserRole.parent:
-              return ParentDashboardScreen(user: user as ParentUser);
-          }
+          // Show unified home screen with permission-based tabs
+          return HomeScreen(user: user);
         }
 
         // Not authenticated - show login

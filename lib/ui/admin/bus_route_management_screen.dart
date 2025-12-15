@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/bus_service.dart';
 import '../../services/route_service.dart';
 import '../../services/driver_service.dart';
@@ -6,6 +7,11 @@ import '../../models/bus.dart';
 import '../../models/route.dart' as models;
 import '../../models/user.dart';
 import '../../core/utils/validators.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../../core/utils/permission_checker.dart';
+import '../../core/constants/permissions.dart';
+import '../../widgets/permission_wrapper.dart';
 
 /// Bus and Route management screen with modern UI
 class BusRouteManagementScreen extends StatefulWidget {
@@ -81,10 +87,21 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
               ],
             ),
       floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              onPressed: () => _showAddEditBusDialog(),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Bus'),
+          ? BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, authState) {
+                if (authState is! AuthAuthenticated) {
+                  return const SizedBox.shrink();
+                }
+                final user = authState.user;
+                if (!PermissionChecker.hasPermission(user, Permissions.busCreate)) {
+                  return const SizedBox.shrink();
+                }
+                return FloatingActionButton.extended(
+                  onPressed: () => _showAddEditBusDialog(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Bus'),
+                );
+              },
             )
           : null,
     );
@@ -109,10 +126,21 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _showAddEditBusDialog(),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add First Bus'),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, authState) {
+                      if (authState is! AuthAuthenticated) {
+                        return const SizedBox.shrink();
+                      }
+                      final user = authState.user;
+                      if (!PermissionChecker.hasPermission(user, Permissions.busCreate)) {
+                        return const SizedBox.shrink();
+                      }
+                      return ElevatedButton.icon(
+                        onPressed: () => _showAddEditBusDialog(),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add First Bus'),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -145,7 +173,15 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => _showAddEditBusDialog(bus: bus),
+        onTap: () {
+          final authState = context.read<AuthBloc>().state;
+          if (authState is AuthAuthenticated) {
+            final user = authState.user;
+            if (PermissionChecker.hasPermission(user, Permissions.busUpdate)) {
+              _showAddEditBusDialog(bus: bus);
+            }
+          }
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -255,13 +291,28 @@ class _BusRouteManagementScreenState extends State<BusRouteManagementScreen>
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.blue),
-                onPressed: () => _showAddEditBusDialog(bus: bus),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () => _deleteBus(bus.id),
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, authState) {
+                  if (authState is! AuthAuthenticated) {
+                    return const SizedBox.shrink();
+                  }
+                  final user = authState.user;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (PermissionChecker.hasPermission(user, Permissions.busUpdate))
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _showAddEditBusDialog(bus: bus),
+                        ),
+                      if (PermissionChecker.hasPermission(user, Permissions.busDelete))
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteBus(bus.id),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

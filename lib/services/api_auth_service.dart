@@ -54,7 +54,8 @@ class ApiAuthService {
   /// Logout
   Future<void> logout() async {
     try {
-      await _apiClient.post('/auth/logout');
+      // Send empty object to satisfy API requirement for application/json content-type
+      await _apiClient.post('/auth/logout', body: {});
     } catch (e) {
       // Continue even if logout fails
     } finally {
@@ -209,6 +210,12 @@ class ApiAuthService {
   User _parseUser(Map<String, dynamic> data) {
     final role = data['role'] as String;
     final organizationId = data['organization_id'] as String?;
+    
+    // Parse permissions from response
+    final permissions = (data['permissions'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
 
     switch (role) {
       case 'admin':
@@ -218,6 +225,7 @@ class ApiAuthService {
           email: data['email'] as String,
           phone: data['phone'] as String?,
           organizationId: organizationId ?? '',
+          permissions: permissions,
         );
       case 'driver':
         return DriverUser(
@@ -229,6 +237,7 @@ class ApiAuthService {
           driverId: data['driver_id'] as String?,
           assignedBusId: data['assigned_bus_id'] as String?,
           assignedRouteId: data['assigned_route_id'] as String?,
+          permissions: permissions,
         );
       case 'parent':
         return ParentUser(
@@ -241,6 +250,7 @@ class ApiAuthService {
                   ?.map((e) => e.toString())
                   .toList() ??
               [],
+          permissions: permissions,
         );
       case 'superadmin':
         return AdminUser(
@@ -249,6 +259,7 @@ class ApiAuthService {
           email: data['email'] as String,
           phone: data['phone'] as String?,
           organizationId: '', // Superadmin has no org
+          permissions: permissions,
         );
       default:
         throw Exception('Unknown user role: $role');

@@ -15,6 +15,7 @@ class User extends Equatable {
   final String? phone;
   final UserRole role;
   final String organizationId;
+  final List<String> permissions;
 
   const User({
     required this.id,
@@ -23,10 +24,11 @@ class User extends Equatable {
     this.phone,
     required this.role,
     required this.organizationId,
+    this.permissions = const [],
   });
 
   @override
-  List<Object?> get props => [id, name, email, phone, role, organizationId];
+  List<Object?> get props => [id, name, email, phone, role, organizationId, permissions];
 }
 
 /// Admin user model
@@ -37,6 +39,7 @@ class AdminUser extends User {
     required super.email,
     super.phone,
     required super.organizationId,
+    super.permissions = const [],
   }) : super(role: UserRole.admin);
 }
 
@@ -57,6 +60,7 @@ class DriverUser extends User {
     this.assignedBusId,
     this.assignedRouteId,
     this.isActive = true,
+    super.permissions = const [],
   }) : super(role: UserRole.driver);
 
   @override
@@ -80,6 +84,7 @@ class ParentUser extends User {
     super.phone,
     required super.organizationId,
     this.childrenIds = const [],
+    super.permissions = const [],
   }) : super(role: UserRole.parent);
 
   @override
