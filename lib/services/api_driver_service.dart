@@ -26,9 +26,19 @@ class ApiDriverService {
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
 
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data.map((e) => _parseDriver(e as Map<String, dynamic>)).toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response.map((e) => _parseDriver(e as Map<String, dynamic>)).toList();
       }
+      
       return [];
     } catch (e) {
       throw Exception('Failed to get drivers: ${e.toString()}');
@@ -39,7 +49,14 @@ class ApiDriverService {
   Future<DriverUser> getDriverById(String id) async {
     try {
       final response = await _apiClient.get('/drivers/$id');
-      return _parseDriver(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseDriver(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseDriver(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get driver: ${e.toString()}');
     }
@@ -57,14 +74,23 @@ class ApiDriverService {
       final response = await _apiClient.post(
         '/drivers',
         body: {
-          'name': name,
-          'email': email,
-          'password': password,
-          'driver_id': driverId,
-          if (phone != null) 'phone': phone,
+          'data': {
+            'name': name,
+            'email': email,
+            'password': password,
+            'driver_id': driverId,
+            if (phone != null) 'phone': phone,
+          },
         },
       );
-      return _parseDriver(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseDriver(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseDriver(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create driver: ${e.toString()}');
     }
@@ -91,8 +117,15 @@ class ApiDriverService {
       if (assignedBusId != null) body['assigned_bus_id'] = assignedBusId;
       if (assignedRouteId != null) body['assigned_route_id'] = assignedRouteId;
 
-      final response = await _apiClient.put('/drivers/$id', body: body);
-      return _parseDriver(response);
+      final response = await _apiClient.put('/drivers/$id', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseDriver(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseDriver(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update driver: ${e.toString()}');
     }
@@ -102,6 +135,13 @@ class ApiDriverService {
   Future<Map<String, dynamic>> getDriverSchedule(String id) async {
     try {
       final response = await _apiClient.get('/drivers/$id/schedule');
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to get driver schedule: ${e.toString()}');

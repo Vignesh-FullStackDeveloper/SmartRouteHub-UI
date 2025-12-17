@@ -4,6 +4,7 @@ import '../../../models/user.dart';
 import '../../../models/role.dart';
 import '../../../services/api_user_service.dart';
 import '../../../services/api_role_service.dart';
+import '../../../services/api_student_service.dart';
 import '../../../core/utils/validators.dart';
 import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_state.dart';
@@ -34,6 +35,7 @@ class _EditUserDialogState extends State<EditUserDialog> {
   final _phoneController = TextEditingController();
   final _userService = ApiUserService();
   final _roleService = ApiRoleService();
+  final _studentService = ApiStudentService();
   
   List<Role> _allRoles = [];
   Role? _selectedRole;
@@ -134,11 +136,40 @@ class _EditUserDialogState extends State<EditUserDialog> {
   }
 
   Future<void> _deleteUser() async {
+    // Check if user is a parent
+    final isParent = widget.user is ParentUser;
+    int studentCount = 0;
+    
+    if (isParent) {
+      // Get all students with this parent_id
+      try {
+        final students = await _studentService.getStudents(parentId: widget.user.id);
+        studentCount = students.length;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to check students: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    String confirmMessage = 'Are you sure you want to delete ${widget.user.name}?';
+    if (isParent && studentCount > 0) {
+      confirmMessage += '\n\nThis will also delete $studentCount student(s) associated with this parent. This action cannot be undone.';
+    } else {
+      confirmMessage += ' This will deactivate the user.';
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete User'),
-        content: Text('Are you sure you want to delete ${widget.user.name}? This will deactivate the user.'),
+        content: Text(confirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -159,13 +190,31 @@ class _EditUserDialogState extends State<EditUserDialog> {
       });
 
       try {
+        // If parent, delete all students first
+        if (isParent) {
+          final students = await _studentService.getStudents(parentId: widget.user.id);
+          for (final student in students) {
+            try {
+              await _studentService.deleteStudent(student.id);
+            } catch (e) {
+              // Log error but continue with other students
+              print('Failed to delete student ${student.id}: $e');
+            }
+          }
+        }
+
+        // Then delete the user
         await _userService.deleteUser(widget.user.id);
         if (mounted) {
           Navigator.of(context).pop();
           widget.onDeleted(widget.user.id);
+          String successMessage = 'User deleted successfully';
+          if (isParent && studentCount > 0) {
+            successMessage += '. $studentCount student(s) also deleted.';
+          }
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('User deleted successfully'),
+            SnackBar(
+              content: Text(successMessage),
               backgroundColor: Colors.green,
             ),
           );

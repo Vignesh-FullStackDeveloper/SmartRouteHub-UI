@@ -13,7 +13,14 @@ class ApiOrgService {
   Future<Organization> getOrganizationById(String id) async {
     try {
       final response = await _apiClient.get('/organizations/$id');
-      return _parseOrganization(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseOrganization(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseOrganization(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get organization: ${e.toString()}');
     }
@@ -26,7 +33,14 @@ class ApiOrgService {
       // Try using code as ID first (if backend supports it)
       // Otherwise, we may need to add a /organizations/code/:code endpoint
       final response = await _apiClient.get('/organizations/$code');
-      return _parseOrganization(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseOrganization(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseOrganization(response as Map<String, dynamic>);
     } catch (e) {
       // If not found, try searching through all (requires superadmin or different approach)
       throw Exception('Failed to get organization: ${e.toString()}');
@@ -71,11 +85,16 @@ class ApiOrgService {
 
       final response = await _apiClient.post(
         '/organizations',
-        body: body,
+        body: {'data': body},
         includeAuth: false,
       );
 
-      // Response includes organization and optionally admin with token
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to create organization: ${e.toString()}');
@@ -121,8 +140,15 @@ class ApiOrgService {
       if (contactPhone != null) body['contact_phone'] = contactPhone;
       if (address != null) body['address'] = address;
 
-      final response = await _apiClient.put('/organizations/$id', body: body);
-      return _parseOrganization(response);
+      final response = await _apiClient.put('/organizations/$id', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseOrganization(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseOrganization(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update organization: ${e.toString()}');
     }

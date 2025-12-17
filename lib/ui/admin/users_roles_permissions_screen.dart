@@ -6,10 +6,12 @@ import '../../models/permission.dart';
 import '../../services/api_user_service.dart';
 import '../../services/api_role_service.dart';
 import '../../services/api_permission_service.dart';
+import '../../services/api_student_service.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../core/utils/permission_checker.dart';
 import '../../core/constants/permissions.dart';
+import '../../core/api/api_client.dart';
 import 'dialogs/create_permission_dialog.dart';
 import 'dialogs/create_role_dialog.dart';
 import 'dialogs/create_user_dialog.dart';
@@ -31,6 +33,7 @@ class _UsersRolesPermissionsScreenState
   final ApiUserService _userService = ApiUserService();
   final ApiRoleService _roleService = ApiRoleService();
   final ApiPermissionService _permissionService = ApiPermissionService();
+  final ApiStudentService _studentService = ApiStudentService();
 
   List<User> _users = [];
   List<Role> _roles = [];
@@ -263,50 +266,98 @@ class _UsersRolesPermissionsScreenState
     );
   }
 
-  void _showDeleteUserDialog(BuildContext context, User user) {
-    showDialog(
+  void _showDeleteUserDialog(BuildContext context, User user) async {
+    // Check if user is a parent
+    final isParent = user is ParentUser;
+    int studentCount = 0;
+    
+    if (isParent) {
+      // Get all students with this parent_id
+      try {
+        final students = await _studentService.getStudents(parentId: user.id);
+        studentCount = students.length;
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to check students: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    String confirmMessage = 'Are you sure you want to delete ${user.name}?';
+    if (isParent && studentCount > 0) {
+      confirmMessage += '\n\nThis will also delete $studentCount student(s) associated with this parent. This action cannot be undone.';
+    } else {
+      confirmMessage += ' This will deactivate the user.';
+    }
+
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete User'),
-        content: Text('Are you sure you want to delete ${user.name}? This will deactivate the user.'),
+        content: Text(confirmMessage),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await _userService.deleteUser(user.id);
-                if (mounted) {
-                  setState(() {
-                    _users.removeWhere((u) => u.id == user.id);
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('User deleted successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete user: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
+            onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
+
+    if (confirm == true && mounted) {
+      try {
+        // If parent, delete all students first
+        if (isParent) {
+          final students = await _studentService.getStudents(parentId: user.id);
+          for (final student in students) {
+            try {
+              await _studentService.deleteStudent(student.id);
+            } catch (e) {
+              // Log error but continue with other students
+              print('Failed to delete student ${student.id}: $e');
+            }
+          }
+        }
+
+        // Then delete the user
+        await _userService.deleteUser(user.id);
+        if (mounted) {
+          setState(() {
+            _users.removeWhere((u) => u.id == user.id);
+          });
+          String successMessage = 'User deleted successfully';
+          if (isParent && studentCount > 0) {
+            successMessage += '. $studentCount student(s) also deleted.';
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(successMessage),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete user: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _showEditRoleDialog(BuildContext context, Role role) {
@@ -360,10 +411,26 @@ class _UsersRolesPermissionsScreenState
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete role: ${e.toString()}'),
-                      backgroundColor: Colors.red,
+                  // Extract error message from ApiException
+                  String errorMessage = 'Failed to delete role';
+                  if (e is ApiException) {
+                    errorMessage = e.message;
+                  } else {
+                    errorMessage = e.toString();
+                  }
+                  
+                  // Show error in a dialog popup
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Error'),
+                      content: Text(errorMessage),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
                     ),
                   );
                 }

@@ -25,11 +25,24 @@ class ApiUserService {
   Future<List<User>> getAllUsers() async {
     try {
       final response = await _apiClient.get('/users');
+      
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data
+              .map((json) => _parseUser(json as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response
             .map((json) => _parseUser(json as Map<String, dynamic>))
             .toList();
       }
+      
       throw Exception('Invalid response format');
     } catch (e) {
       throw Exception('Failed to get users: ${e.toString()}');
@@ -40,7 +53,14 @@ class ApiUserService {
   Future<User> getUserById(String id) async {
     try {
       final response = await _apiClient.get('/users/$id');
-      return _parseUser(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseUser(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseUser(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get user: ${e.toString()}');
     }
@@ -74,8 +94,15 @@ class ApiUserService {
       if (email != null) body['email'] = email;
       if (phone != null) body['phone'] = phone;
 
-      final response = await _apiClient.put('/users/$userId', body: body);
-      return _parseUser(response);
+      final response = await _apiClient.put('/users/$userId', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseUser(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseUser(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update profile: ${e.toString()}');
     }
@@ -98,8 +125,15 @@ class ApiUserService {
       if (isActive != null) body['is_active'] = isActive;
       if (roleId != null) body['role_id'] = roleId;
 
-      final response = await _apiClient.put('/users/$userId', body: body);
-      return _parseUser(response);
+      final response = await _apiClient.put('/users/$userId', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseUser(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseUser(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update user: ${e.toString()}');
     }
@@ -139,7 +173,14 @@ class ApiUserService {
         body['driver_id'] = driverId;
       }
 
-      final response = await _apiClient.post('/users', body: body);
+      final response = await _apiClient.post('/users', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseUser(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
       return _parseUser(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create user: ${e.toString()}');

@@ -23,6 +23,12 @@ class ApiAnalyticsService {
         '/analytics/students/$studentId/travel-history',
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to get student travel history: ${e.toString()}');
@@ -44,6 +50,12 @@ class ApiAnalyticsService {
         '/analytics/buses/$busId/travel-history',
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to get bus travel history: ${e.toString()}');
@@ -65,6 +77,12 @@ class ApiAnalyticsService {
         '/analytics/drivers/$driverId/travel-history',
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to get driver travel history: ${e.toString()}');
@@ -75,6 +93,12 @@ class ApiAnalyticsService {
   Future<Map<String, dynamic>> getDashboardInsights() async {
     try {
       final response = await _apiClient.get('/analytics/dashboard');
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to get dashboard insights: ${e.toString()}');

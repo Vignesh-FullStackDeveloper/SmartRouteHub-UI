@@ -137,16 +137,20 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 Row(
                   children: [
                     const Icon(Icons.person_add, size: 28),
@@ -208,6 +212,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _selectedRoleType,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Role Type *',
                     prefixIcon: Icon(Icons.badge),
@@ -231,24 +236,40 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                     ? const Center(child: CircularProgressIndicator())
                     : DropdownButtonFormField<Role>(
                         value: _selectedRole,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Role *',
                           prefixIcon: Icon(Icons.shield),
                           helperText: 'Select a role to assign permissions',
                         ),
+                        selectedItemBuilder: (BuildContext context) {
+                          return _allRoles.map<Widget>((Role role) {
+                            return Text(
+                              role.name,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          }).toList();
+                        },
                         items: _allRoles.map((role) {
                           return DropdownMenuItem<Role>(
                             value: role,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(role.name),
+                                Text(
+                                  role.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
                                 Text(
                                   role.description,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey[600],
                                   ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
                                 ),
                               ],
                             ),
@@ -314,6 +335,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

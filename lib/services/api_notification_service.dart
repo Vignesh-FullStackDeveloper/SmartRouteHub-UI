@@ -31,7 +31,17 @@ class ApiNotificationService {
         },
       );
 
-      // Backend may return array directly or wrapped
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data
+              .map((e) => _parseNotification(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response
             .map((e) => _parseNotification(e as Map<String, dynamic>))
@@ -52,7 +62,16 @@ class ApiNotificationService {
   Future<int> getUnreadCount() async {
     try {
       final response = await _apiClient.get('/notifications/unread-count');
-      return (response['unread_count'] as num?)?.toInt() ?? 0;
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      Map<String, dynamic> responseData;
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        responseData = response['data'] as Map<String, dynamic>;
+      } else {
+        responseData = response as Map<String, dynamic>;
+      }
+      
+      return (responseData['unread_count'] as num?)?.toInt() ?? 0;
     } catch (e) {
       throw Exception('Failed to get unread count: ${e.toString()}');
     }
@@ -61,7 +80,7 @@ class ApiNotificationService {
   /// Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _apiClient.patch('/notifications/$notificationId/read');
+      await _apiClient.patch('/notifications/$notificationId/read', body: {'data': {}});
     } catch (e) {
       throw Exception('Failed to mark as read: ${e.toString()}');
     }
@@ -70,7 +89,7 @@ class ApiNotificationService {
   /// Mark all notifications as read
   Future<void> markAllAsRead() async {
     try {
-      await _apiClient.patch('/notifications/read-all');
+      await _apiClient.patch('/notifications/read-all', body: {'data': {}});
     } catch (e) {
       throw Exception('Failed to mark all as read: ${e.toString()}');
     }

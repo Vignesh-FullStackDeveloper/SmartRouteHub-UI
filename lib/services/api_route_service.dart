@@ -21,9 +21,19 @@ class ApiRouteService {
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
 
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data.map((e) => _parseRoute(e as Map<String, dynamic>)).toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response.map((e) => _parseRoute(e as Map<String, dynamic>)).toList();
       }
+      
       return [];
     } catch (e) {
       throw Exception('Failed to get routes: ${e.toString()}');
@@ -34,7 +44,14 @@ class ApiRouteService {
   Future<Route> getRouteById(String id) async {
     try {
       final response = await _apiClient.get('/routes/$id');
-      return _parseRoute(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseRoute(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseRoute(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get route: ${e.toString()}');
     }
@@ -55,26 +72,35 @@ class ApiRouteService {
       final response = await _apiClient.post(
         '/routes',
         body: {
-          'name': name,
-          'start_time': startTime,
-          'end_time': endTime,
-          if (estimatedDurationMinutes != null)
-            'estimated_duration_minutes': estimatedDurationMinutes,
-          if (totalDistanceKm != null) 'total_distance_km': totalDistanceKm,
-          if (assignedBusId != null) 'assigned_bus_id': assignedBusId,
-          if (routePolyline != null) 'route_polyline': routePolyline,
-          if (stops != null)
-            'stops': stops.map((s) => {
-                  'name': s.name,
-                  'latitude': s.latitude,
-                  'longitude': s.longitude,
-                  'order': s.order,
-                  if (s.estimatedArrivalTime != null)
-                    'estimated_arrival_time': s.estimatedArrivalTime!.toIso8601String(),
-                }).toList(),
+          'data': {
+            'name': name,
+            'start_time': startTime,
+            'end_time': endTime,
+            if (estimatedDurationMinutes != null)
+              'estimated_duration_minutes': estimatedDurationMinutes,
+            if (totalDistanceKm != null) 'total_distance_km': totalDistanceKm,
+            if (assignedBusId != null) 'assigned_bus_id': assignedBusId,
+            if (routePolyline != null) 'route_polyline': routePolyline,
+            if (stops != null)
+              'stops': stops.map((s) => {
+                    'name': s.name,
+                    'latitude': s.latitude,
+                    'longitude': s.longitude,
+                    'order': s.order,
+                    if (s.estimatedArrivalTime != null)
+                      'estimated_arrival_time': s.estimatedArrivalTime!.toIso8601String(),
+                  }).toList(),
+          },
         },
       );
-      return _parseRoute(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseRoute(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseRoute(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create route: ${e.toString()}');
     }
@@ -126,8 +152,15 @@ class ApiRouteService {
             }).toList();
       }
 
-      final response = await _apiClient.put('/routes/$id', body: body);
-      return _parseRoute(response);
+      final response = await _apiClient.put('/routes/$id', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseRoute(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseRoute(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update route: ${e.toString()}');
     }
@@ -152,10 +185,19 @@ class ApiRouteService {
       final response = await _apiClient.post(
         '/routes/$routeId/assign-students',
         body: {
-          'student_ids': studentIds,
-          if (busId != null) 'bus_id': busId,
+          'data': {
+            'student_ids': studentIds,
+            if (busId != null) 'bus_id': busId,
+          },
         },
       );
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to assign students: ${e.toString()}');

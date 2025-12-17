@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/api_student_service.dart';
 import '../../services/api_bus_service.dart';
 import '../../services/api_route_service.dart';
+import '../../services/api_user_service.dart';
 import '../../models/student.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart' as models;
+import '../../models/user.dart';
 import '../../widgets/primary_button.dart';
 import '../../core/utils/validators.dart';
 import '../../blocs/auth/auth_bloc.dart';
@@ -28,9 +30,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
   final ApiStudentService _studentService = ApiStudentService();
   final ApiBusService _busService = ApiBusService();
   final ApiRouteService _routeService = ApiRouteService();
+  final ApiUserService _userService = ApiUserService();
   List<Student> _students = [];
   List<Bus> _buses = [];
   List<models.Route> _routes = [];
+  List<ParentUser> _parents = [];
   bool _isLoading = true;
   late AnimationController _animationController;
 
@@ -59,11 +63,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
       final students = await _studentService.getStudents();
       final buses = await _busService.getBuses();
       final routes = await _routeService.getRoutes();
+      final users = await _userService.getAllUsers();
+      final parents = users.whereType<ParentUser>().toList();
       if (!mounted) return;
       setState(() {
         _students = students;
         _buses = buses;
         _routes = routes;
+        _parents = parents;
         _isLoading = false;
       });
     } catch (e) {
@@ -452,6 +459,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
         _routes.any((route) => route.id == studentRouteId)) {
       selectedRouteId = studentRouteId;
     }
+    // Set selected parent ID
+    String? selectedParentId;
+    final studentParentId = student?.parentId;
+    if (studentParentId != null && 
+        studentParentId.isNotEmpty &&
+        _parents.any((parent) => parent.id == studentParentId)) {
+      selectedParentId = studentParentId;
+    }
     bool isActive = student?.isActive ?? true;
 
     showModalBottomSheet(
@@ -549,6 +564,52 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                         const SizedBox(height: 16),
                         Builder(
                           builder: (context) {
+                            // Build parent items list
+                            final parentItems = _parents
+                                .where((parent) => parent.id.isNotEmpty)
+                                .map((parent) => DropdownMenuItem<String>(
+                                      value: parent.id,
+                                      child: Text('${parent.name} (${parent.email})'),
+                                    ))
+                                .toList();
+                            
+                            // Ensure selectedParentId matches an item in the list
+                            final validParentId = parentItems.any((item) => item.value == selectedParentId)
+                                ? selectedParentId
+                                : null;
+                            
+                            return DropdownButtonFormField<String>(
+                              value: validParentId,
+                              decoration: const InputDecoration(
+                                labelText: 'Parent *',
+                                prefixIcon: Icon(Icons.family_restroom),
+                                hintText: 'Select a parent',
+                              ),
+                              items: parentItems.isEmpty
+                                  ? [
+                                      const DropdownMenuItem<String>(
+                                        value: null,
+                                        child: Text('No parents available'),
+                                      )
+                                    ]
+                                  : parentItems,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please select a parent';
+                                }
+                                return null;
+                              },
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  selectedParentId = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Builder(
+                          builder: (context) {
                             // Build items list
                             final routeItems = <DropdownMenuItem<String?>>[
                               const DropdownMenuItem<String?>(
@@ -615,6 +676,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                         child: ElevatedButton(
                           onPressed: () async {
                           if (formKey.currentState!.validate()) {
+                            if (selectedParentId?.isEmpty ?? true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please select a parent')),
+                              );
+                              return;
+                            }
                             try {
                               if (student == null) {
                                 await _studentService.createStudent(
@@ -622,6 +689,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                                   classGrade: classController.text,
                                   section: sectionController.text,
                                   parentContact: parentContactController.text,
+                                  parentId: selectedParentId!,
                                   assignedRouteId: selectedRouteId,
                                   isActive: isActive,
                                 );
@@ -632,6 +700,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                                   classGrade: classController.text,
                                   section: sectionController.text,
                                   parentContact: parentContactController.text,
+                                  parentId: selectedParentId!,
                                   assignedRouteId: selectedRouteId,
                                   isActive: isActive,
                                 );

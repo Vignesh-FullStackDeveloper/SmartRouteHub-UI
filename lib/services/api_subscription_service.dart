@@ -27,7 +27,14 @@ class ApiSubscriptionService {
         if (notes != null) 'notes': notes,
       };
 
-      final response = await _apiClient.post('/subscriptions', body: body);
+      final response = await _apiClient.post('/subscriptions', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to create subscription: ${e.toString()}');
@@ -38,9 +45,20 @@ class ApiSubscriptionService {
   Future<List<Map<String, dynamic>>> getStudentSubscriptions(String studentId) async {
     try {
       final response = await _apiClient.get('/subscriptions/student/$studentId');
+      
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data.map((e) => e as Map<String, dynamic>).toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response.map((e) => e as Map<String, dynamic>).toList();
       }
+      
       return [];
     } catch (e) {
       throw Exception('Failed to get subscriptions: ${e.toString()}');
@@ -51,7 +69,15 @@ class ApiSubscriptionService {
   Future<Map<String, dynamic>?> getActiveSubscription(String studentId) async {
     try {
       final response = await _apiClient.get('/subscriptions/student/$studentId/active');
-      final data = response as Map<String, dynamic>;
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      Map<String, dynamic> data;
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        data = response['data'] as Map<String, dynamic>;
+      } else {
+        data = response as Map<String, dynamic>;
+      }
+      
       if (data['active'] == true) {
         return data['subscription'] as Map<String, dynamic>;
       }
@@ -80,7 +106,14 @@ class ApiSubscriptionService {
       if (notes != null) body['notes'] = notes;
       if (status != null) body['status'] = status;
 
-      final response = await _apiClient.put('/subscriptions/$id', body: body);
+      final response = await _apiClient.put('/subscriptions/$id', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to update subscription: ${e.toString()}');
@@ -94,6 +127,13 @@ class ApiSubscriptionService {
         '/subscriptions/expiring',
         queryParams: {'days': days.toString()},
       );
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to get expiring subscriptions: ${e.toString()}');

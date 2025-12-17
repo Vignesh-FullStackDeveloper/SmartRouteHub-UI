@@ -13,11 +13,24 @@ class ApiRoleService {
   Future<List<Role>> getAllRoles() async {
     try {
       final response = await _apiClient.get('/roles');
+      
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data
+              .map((json) => Role.fromJson(json as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response
             .map((json) => Role.fromJson(json as Map<String, dynamic>))
             .toList();
       }
+      
       throw Exception('Invalid response format');
     } catch (e) {
       throw Exception('Failed to get roles: ${e.toString()}');
@@ -28,6 +41,13 @@ class ApiRoleService {
   Future<Role> getRoleById(String id) async {
     try {
       final response = await _apiClient.get('/roles/$id');
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return Role.fromJson(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
       return Role.fromJson(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get role: ${e.toString()}');
@@ -53,7 +73,14 @@ class ApiRoleService {
         body['description'] = description;
       }
 
-      final response = await _apiClient.post('/roles', body: body);
+      final response = await _apiClient.post('/roles', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return Role.fromJson(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
       return Role.fromJson(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create role: ${e.toString()}');
@@ -78,7 +105,14 @@ class ApiRoleService {
         body['permissionIds'] = permissionIds;
       }
 
-      final response = await _apiClient.put('/roles/$roleId', body: body);
+      final response = await _apiClient.put('/roles/$roleId', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return Role.fromJson(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
       return Role.fromJson(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update role: ${e.toString()}');
@@ -90,6 +124,10 @@ class ApiRoleService {
     try {
       await _apiClient.delete('/roles/$roleId');
     } catch (e) {
+      // Re-throw ApiException as-is to preserve the error message
+      if (e is ApiException) {
+        rethrow;
+      }
       throw Exception('Failed to delete role: ${e.toString()}');
     }
   }

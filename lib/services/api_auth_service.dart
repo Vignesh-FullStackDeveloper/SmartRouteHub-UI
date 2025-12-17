@@ -19,20 +19,30 @@ class ApiAuthService {
       final response = await _apiClient.post(
         '/auth/login',
         body: {
-          'email': email,
-          'password': password,
-          if (organizationCode != null) 'organizationCode': organizationCode,
+          'data': {
+            'email': email,
+            'password': password,
+            if (organizationCode != null) 'organizationCode': organizationCode,
+          },
         },
         includeAuth: false,
       );
 
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      Map<String, dynamic> responseData;
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        responseData = response['data'] as Map<String, dynamic>;
+      } else {
+        responseData = response as Map<String, dynamic>;
+      }
+
       // Save token
-      if (response['token'] != null) {
-        await _apiClient.saveToken(response['token']);
+      if (responseData['token'] != null) {
+        await _apiClient.saveToken(responseData['token'] as String);
       }
 
       // Parse user from response
-      final userData = response['user'] ?? response;
+      final userData = responseData['user'] ?? responseData;
       return _parseUser(userData);
     } catch (e) {
       throw Exception('Login failed: ${e.toString()}');
@@ -43,7 +53,16 @@ class ApiAuthService {
   Future<User> verifyToken() async {
     try {
       final response = await _apiClient.get('/auth/verify');
-      return _parseUser(response['user'] ?? response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      Map<String, dynamic> responseData;
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        responseData = response['data'] as Map<String, dynamic>;
+      } else {
+        responseData = response as Map<String, dynamic>;
+      }
+      
+      return _parseUser(responseData['user'] ?? responseData);
     } catch (e) {
       throw Exception('Token verification failed: ${e.toString()}');
     }
@@ -53,7 +72,7 @@ class ApiAuthService {
   Future<void> logout() async {
     try {
       // Send empty object to satisfy API requirement for application/json content-type
-      await _apiClient.post('/auth/logout', body: {});
+      await _apiClient.post('/auth/logout', body: {'data': {}});
     } catch (e) {
       // Continue even if logout fails
     } finally {
@@ -104,12 +123,17 @@ class ApiAuthService {
 
       final response = await _apiClient.post(
         '/organizations',
-        body: body,
+        body: {'data': body},
         includeAuth: false,
       );
 
-      // Response includes organization and admin with token
-      final responseData = response as Map<String, dynamic>;
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      Map<String, dynamic> responseData;
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        responseData = response['data'] as Map<String, dynamic>;
+      } else {
+        responseData = response as Map<String, dynamic>;
+      }
       
       // Check if admin was created and token is present
       if (responseData['admin'] != null) {

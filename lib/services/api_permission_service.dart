@@ -13,11 +13,24 @@ class ApiPermissionService {
   Future<List<Permission>> getAllPermissions() async {
     try {
       final response = await _apiClient.get('/permissions');
+      
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data
+              .map((json) => Permission.fromJson(json as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response
             .map((json) => Permission.fromJson(json as Map<String, dynamic>))
             .toList();
       }
+      
       throw Exception('Invalid response format');
     } catch (e) {
       throw Exception('Failed to get permissions: ${e.toString()}');
@@ -28,6 +41,13 @@ class ApiPermissionService {
   Future<Permission> getPermissionById(String id) async {
     try {
       final response = await _apiClient.get('/permissions/$id');
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return Permission.fromJson(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
       return Permission.fromJson(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get permission: ${e.toString()}');
@@ -49,7 +69,14 @@ class ApiPermissionService {
         body['description'] = description;
       }
 
-      final response = await _apiClient.post('/permissions', body: body);
+      final response = await _apiClient.post('/permissions', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return Permission.fromJson(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
       return Permission.fromJson(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create permission: ${e.toString()}');

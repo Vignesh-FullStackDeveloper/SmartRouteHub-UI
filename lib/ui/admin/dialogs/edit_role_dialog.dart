@@ -8,6 +8,7 @@ import '../../../blocs/auth/auth_bloc.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../../core/utils/permission_checker.dart';
 import '../../../core/constants/permissions.dart';
+import '../../../core/api/api_client.dart';
 
 /// Dialog for editing an existing role
 class EditRoleDialog extends StatefulWidget {
@@ -177,10 +178,26 @@ class _EditRoleDialogState extends State<EditRoleDialog> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete role: ${e.toString()}'),
-              backgroundColor: Colors.red,
+          // Extract error message from ApiException
+          String errorMessage = 'Failed to delete role';
+          if (e is ApiException) {
+            errorMessage = e.message;
+          } else {
+            errorMessage = e.toString();
+          }
+          
+          // Show error in a dialog popup
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Error'),
+              content: Text(errorMessage),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
           );
         }

@@ -20,9 +20,19 @@ class ApiBusService {
         queryParams: queryParams.isEmpty ? null : queryParams,
       );
 
+      // Handle new response format: { success: true, data: [...], message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          return data.map((e) => _parseBus(e as Map<String, dynamic>)).toList();
+        }
+      }
+      
+      // Handle old response format: direct list
       if (response is List) {
         return response.map((e) => _parseBus(e as Map<String, dynamic>)).toList();
       }
+      
       return [];
     } catch (e) {
       throw Exception('Failed to get buses: ${e.toString()}');
@@ -33,7 +43,14 @@ class ApiBusService {
   Future<Bus> getBusById(String id) async {
     try {
       final response = await _apiClient.get('/buses/$id');
-      return _parseBus(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseBus(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseBus(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to get bus: ${e.toString()}');
     }
@@ -52,15 +69,24 @@ class ApiBusService {
       final response = await _apiClient.post(
         '/buses',
         body: {
-          'bus_number': busNumber,
-          'capacity': capacity,
-          if (driverId != null) 'driver_id': driverId,
-          if (assignedRouteId != null) 'assigned_route_id': assignedRouteId,
-          if (isActive != null) 'is_active': isActive,
-          if (metadata != null) 'metadata': metadata,
+          'data': {
+            'bus_number': busNumber,
+            'capacity': capacity,
+            if (driverId != null) 'driver_id': driverId,
+            if (assignedRouteId != null) 'assigned_route_id': assignedRouteId,
+            if (isActive != null) 'is_active': isActive,
+            if (metadata != null) 'metadata': metadata,
+          },
         },
       );
-      return _parseBus(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseBus(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseBus(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create bus: ${e.toString()}');
     }
@@ -85,8 +111,15 @@ class ApiBusService {
       if (isActive != null) body['is_active'] = isActive;
       if (metadata != null) body['metadata'] = metadata;
 
-      final response = await _apiClient.put('/buses/$id', body: body);
-      return _parseBus(response);
+      final response = await _apiClient.put('/buses/$id', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseBus(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseBus(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update bus: ${e.toString()}');
     }
@@ -106,9 +139,16 @@ class ApiBusService {
     try {
       final response = await _apiClient.post(
         '/buses/$busId/assign-driver',
-        body: {'driver_id': driverId},
+        body: {'data': {'driver_id': driverId}},
       );
-      return _parseBus(response);
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return _parseBus(response['data'] as Map<String, dynamic>);
+      }
+      
+      // Handle old response format: direct object
+      return _parseBus(response as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to assign driver: ${e.toString()}');
     }

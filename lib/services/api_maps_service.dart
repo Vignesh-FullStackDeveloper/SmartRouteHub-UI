@@ -26,7 +26,14 @@ class ApiMapsService {
               .toList(),
       };
 
-      final response = await _apiClient.post('/maps/route/calculate', body: body);
+      final response = await _apiClient.post('/maps/route/calculate', body: {'data': body});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to calculate route: ${e.toString()}');
@@ -38,8 +45,15 @@ class ApiMapsService {
     try {
       final response = await _apiClient.post(
         '/maps/geocode',
-        body: {'address': address},
+        body: {'data': {'address': address}},
       );
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to geocode address: ${e.toString()}');
@@ -55,10 +69,19 @@ class ApiMapsService {
       final response = await _apiClient.post(
         '/maps/reverse-geocode',
         body: {
-          'latitude': latitude,
-          'longitude': longitude,
+          'data': {
+            'latitude': latitude,
+            'longitude': longitude,
+          },
         },
       );
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to reverse geocode: ${e.toString()}');
@@ -79,7 +102,15 @@ class ApiMapsService {
     try {
       // Get current route to get existing stops
       final routeResponse = await _apiClient.get('/routes/$routeId');
-      final route = routeResponse as Map<String, dynamic>;
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      Map<String, dynamic> route;
+      if (routeResponse is Map<String, dynamic> && routeResponse.containsKey('data')) {
+        route = routeResponse['data'] as Map<String, dynamic>;
+      } else {
+        route = routeResponse as Map<String, dynamic>;
+      }
+      
       final stops = (route['stops'] as List<dynamic>?) ?? [];
 
       // Add new stop to the list
@@ -98,7 +129,14 @@ class ApiMapsService {
         'stops': stops,
       };
 
-      final response = await _apiClient.put('/routes/$routeId', body: updateBody);
+      final response = await _apiClient.put('/routes/$routeId', body: {'data': updateBody});
+      
+      // Handle new response format: { success: true, data: {...}, message: "..." }
+      if (response is Map<String, dynamic> && response.containsKey('data')) {
+        return response['data'] as Map<String, dynamic>;
+      }
+      
+      // Handle old response format: direct object
       return response as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to save location pin: ${e.toString()}');
