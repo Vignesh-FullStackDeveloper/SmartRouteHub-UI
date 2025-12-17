@@ -7,11 +7,12 @@ class Student extends Equatable {
   final String classGrade; // e.g., "Class 5"
   final String section; // e.g., "A"
   final String organizationId;
-  final String parentId;
+  final String? parentId;
   final String parentContact;
   final String? pickupPointId;
   final String? assignedBusId;
   final String? assignedRouteId;
+  final bool isActive;
 
   const Student({
     required this.id,
@@ -19,11 +20,12 @@ class Student extends Equatable {
     required this.classGrade,
     required this.section,
     required this.organizationId,
-    required this.parentId,
+    this.parentId,
     required this.parentContact,
     this.pickupPointId,
     this.assignedBusId,
     this.assignedRouteId,
+    this.isActive = true,
   });
 
   @override
@@ -38,6 +40,7 @@ class Student extends Equatable {
         pickupPointId,
         assignedBusId,
         assignedRouteId,
+        isActive,
       ];
 
   Student copyWith({
@@ -51,6 +54,7 @@ class Student extends Equatable {
     String? pickupPointId,
     String? assignedBusId,
     String? assignedRouteId,
+    bool? isActive,
   }) {
     return Student(
       id: id ?? this.id,
@@ -63,6 +67,7 @@ class Student extends Equatable {
       pickupPointId: pickupPointId ?? this.pickupPointId,
       assignedBusId: assignedBusId ?? this.assignedBusId,
       assignedRouteId: assignedRouteId ?? this.assignedRouteId,
+      isActive: isActive ?? this.isActive,
     );
   }
 }

@@ -267,16 +267,24 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          Theme.of(context).colorScheme.primary,
-                          Theme.of(context).colorScheme.secondary,
-                          Theme.of(context).colorScheme.tertiary,
-                        ],
+                        colors: student.isActive
+                            ? [
+                                Theme.of(context).colorScheme.primary,
+                                Theme.of(context).colorScheme.secondary,
+                                Theme.of(context).colorScheme.tertiary,
+                              ]
+                            : [
+                                Colors.grey,
+                                Colors.grey[700]!,
+                              ],
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                          color: (student.isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.grey)
+                              .withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -290,13 +298,46 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        student.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              student.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: student.isActive
+                                    ? [Colors.green.shade400, Colors.green.shade600]
+                                    : [Colors.grey.shade400, Colors.grey.shade600],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (student.isActive ? Colors.green : Colors.grey).withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              student.isActive ? 'ACTIVE' : 'INACTIVE',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -403,151 +444,157 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
         TextEditingController(text: student?.section ?? '');
     final parentContactController =
         TextEditingController(text: student?.parentContact ?? '');
-    String? selectedBusId = student?.assignedBusId;
-    String? selectedRouteId = student?.assignedRouteId;
+    // Only set selectedRouteId if it exists in the lists and is not empty
+    String? selectedRouteId;
+    final studentRouteId = student?.assignedRouteId;
+    if (studentRouteId != null && 
+        studentRouteId.isNotEmpty &&
+        _routes.any((route) => route.id == studentRouteId)) {
+      selectedRouteId = studentRouteId;
+    }
+    bool isActive = student?.isActive ?? true;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.9,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 16),
-              width: 48,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(3),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Container(
+          height: MediaQuery.of(context).size.height * 0.9,
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 16),
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      student == null ? 'Add Student' : 'Edit Student',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        student == null ? 'Add Student' : 'Edit Student',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Student Name',
-                          prefixIcon: Icon(Icons.person),
-                        ),
-                        validator: (value) =>
-                            Validators.validateRequired(value, 'Name'),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: classController,
-                        decoration: const InputDecoration(
-                          labelText: 'Class/Grade',
-                          prefixIcon: Icon(Icons.class_),
-                          hintText: 'e.g., Class 5',
-                        ),
-                        validator: (value) =>
-                            Validators.validateRequired(value, 'Class'),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: sectionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Section',
-                          prefixIcon: Icon(Icons.abc),
-                          hintText: 'e.g., A, B, C',
-                        ),
-                        validator: (value) =>
-                            Validators.validateRequired(value, 'Section'),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: parentContactController,
-                        decoration: const InputDecoration(
-                          labelText: 'Parent Contact',
-                          prefixIcon: Icon(Icons.phone),
-                          hintText: '+1234567890',
-                        ),
-                        keyboardType: TextInputType.phone,
-                        validator: Validators.validatePhone,
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: selectedBusId,
-                        decoration: const InputDecoration(
-                          labelText: 'Assigned Bus',
-                          prefixIcon: Icon(Icons.directions_bus),
-                        ),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            child: Text('None'),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        TextFormField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Student Name',
+                            prefixIcon: Icon(Icons.person),
                           ),
-                          ..._buses.map((bus) => DropdownMenuItem<String>(
-                                value: bus.id,
-                                child: Text(bus.busNumber),
-                              )),
-                        ],
-                        onChanged: (value) {
-                          if (mounted) {
-                            setState(() {
-                              selectedBusId = value;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: selectedRouteId,
-                        decoration: const InputDecoration(
-                          labelText: 'Assigned Route',
-                          prefixIcon: Icon(Icons.route),
+                          validator: (value) =>
+                              Validators.validateRequired(value, 'Name'),
                         ),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            child: Text('None'),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: classController,
+                          decoration: const InputDecoration(
+                            labelText: 'Class/Grade',
+                            prefixIcon: Icon(Icons.class_),
+                            hintText: 'e.g., Class 5',
                           ),
-                          ..._routes.map((route) => DropdownMenuItem<String>(
-                                value: route.id,
-                                child: Text(route.name),
-                              )),
-                        ],
-                        onChanged: (value) {
-                          if (mounted) {
-                            setState(() {
-                              selectedRouteId = value;
+                          validator: (value) =>
+                              Validators.validateRequired(value, 'Class'),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: sectionController,
+                          decoration: const InputDecoration(
+                            labelText: 'Section',
+                            prefixIcon: Icon(Icons.abc),
+                            hintText: 'e.g., A, B, C',
+                          ),
+                          validator: (value) =>
+                              Validators.validateRequired(value, 'Section'),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: parentContactController,
+                          decoration: const InputDecoration(
+                            labelText: 'Parent Contact',
+                            prefixIcon: Icon(Icons.phone),
+                            hintText: '+1234567890',
+                          ),
+                          keyboardType: TextInputType.phone,
+                          validator: Validators.validatePhone,
+                        ),
+                        const SizedBox(height: 16),
+                        Builder(
+                          builder: (context) {
+                            // Build items list
+                            final routeItems = <DropdownMenuItem<String?>>[
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('None'),
+                              ),
+                              ..._routes
+                                  .where((route) => route.id.isNotEmpty)
+                                  .map((route) => DropdownMenuItem<String?>(
+                                        value: route.id,
+                                        child: Text(route.name),
+                                      )),
+                            ];
+                            
+                            // Ensure selectedRouteId matches an item in the list
+                            final validRouteId = routeItems.any((item) => item.value == selectedRouteId)
+                                ? selectedRouteId
+                                : null;
+                            
+                            return DropdownButtonFormField<String?>(
+                              value: validRouteId,
+                              decoration: const InputDecoration(
+                                labelText: 'Assigned Route',
+                                prefixIcon: Icon(Icons.route),
+                              ),
+                              items: routeItems,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  selectedRouteId = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        SwitchListTile(
+                          title: const Text('Active Status'),
+                          subtitle: const Text('Enable/disable student'),
+                          value: isActive,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              isActive = value;
                             });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 32),
+                          },
+                        ),
+                        const SizedBox(height: 32),
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -570,22 +617,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                           if (formKey.currentState!.validate()) {
                             try {
                               if (student == null) {
-                                // Get parentId from auth context or create placeholder
-                                final authState = context.read<AuthBloc>().state;
-                                String? parentId;
-                                if (authState is AuthAuthenticated) {
-                                  // For now, use a placeholder - in production, you'd create/fetch parent
-                                  parentId = 'parent_${DateTime.now().millisecondsSinceEpoch}';
-                                }
-                                
                                 await _studentService.createStudent(
                                   name: nameController.text,
                                   classGrade: classController.text,
                                   section: sectionController.text,
-                                  parentId: parentId ?? 'temp_parent',
                                   parentContact: parentContactController.text,
-                                  assignedBusId: selectedBusId,
                                   assignedRouteId: selectedRouteId,
+                                  isActive: isActive,
                                 );
                               } else {
                                 await _studentService.updateStudent(
@@ -594,8 +632,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                                   classGrade: classController.text,
                                   section: sectionController.text,
                                   parentContact: parentContactController.text,
-                                  assignedBusId: selectedBusId,
                                   assignedRouteId: selectedRouteId,
+                                  isActive: isActive,
                                 );
                               }
                               if (mounted) {
@@ -636,6 +674,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }

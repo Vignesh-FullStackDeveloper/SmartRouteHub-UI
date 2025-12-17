@@ -45,6 +45,7 @@ class ApiBusService {
     required int capacity,
     String? driverId,
     String? assignedRouteId,
+    bool? isActive,
     Map<String, dynamic>? metadata,
   }) async {
     try {
@@ -55,6 +56,7 @@ class ApiBusService {
           'capacity': capacity,
           if (driverId != null) 'driver_id': driverId,
           if (assignedRouteId != null) 'assigned_route_id': assignedRouteId,
+          if (isActive != null) 'is_active': isActive,
           if (metadata != null) 'metadata': metadata,
         },
       );

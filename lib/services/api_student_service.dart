@@ -50,11 +50,10 @@ class ApiStudentService {
     required String name,
     required String classGrade,
     required String section,
-    required String parentId,
     required String parentContact,
     String? pickupPointId,
-    String? assignedBusId,
     String? assignedRouteId,
+    bool? isActive,
   }) async {
     try {
       final response = await _apiClient.post(
@@ -63,11 +62,10 @@ class ApiStudentService {
           'name': name,
           'class_grade': classGrade,
           'section': section,
-          'parent_id': parentId,
           'parent_contact': parentContact,
           if (pickupPointId != null) 'pickup_point_id': pickupPointId,
-          if (assignedBusId != null) 'assigned_bus_id': assignedBusId,
           if (assignedRouteId != null) 'assigned_route_id': assignedRouteId,
+          if (isActive != null) 'is_active': isActive,
         },
       );
       return _parseStudent(response);
@@ -84,8 +82,8 @@ class ApiStudentService {
     String? section,
     String? parentContact,
     String? pickupPointId,
-    String? assignedBusId,
     String? assignedRouteId,
+    bool? isActive,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -94,8 +92,8 @@ class ApiStudentService {
       if (section != null) body['section'] = section;
       if (parentContact != null) body['parent_contact'] = parentContact;
       if (pickupPointId != null) body['pickup_point_id'] = pickupPointId;
-      if (assignedBusId != null) body['assigned_bus_id'] = assignedBusId;
       if (assignedRouteId != null) body['assigned_route_id'] = assignedRouteId;
+      if (isActive != null) body['is_active'] = isActive;
 
       final response = await _apiClient.put('/students/$id', body: body);
       return _parseStudent(response);
@@ -130,11 +128,12 @@ class ApiStudentService {
       classGrade: data['class_grade'] as String,
       section: data['section'] as String,
       organizationId: data['organization_id'] as String? ?? '',
-      parentId: data['parent_id'] as String,
+      parentId: data['parent_id'] as String?,
       parentContact: data['parent_contact'] as String,
       pickupPointId: data['pickup_point_id'] as String?,
       assignedBusId: data['assigned_bus_id'] as String?,
       assignedRouteId: data['assigned_route_id'] as String?,
+      isActive: data['is_active'] as bool? ?? true,
     );
   }
 }

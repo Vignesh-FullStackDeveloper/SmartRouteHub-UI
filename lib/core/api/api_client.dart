@@ -78,6 +78,18 @@ class ApiClient {
       clearToken();
       throw ApiException('Unauthorized. Please login again.', 401);
     } else if (response.statusCode == 403) {
+      // Try to parse error message from response body
+      try {
+        if (response.body.isNotEmpty) {
+          final error = json.decode(response.body);
+          throw ApiException(
+            error['error'] ?? 'Access denied. Insufficient permissions.',
+            403,
+          );
+        }
+      } catch (e) {
+        if (e is ApiException) rethrow;
+      }
       throw ApiException('Access denied. Insufficient permissions.', 403);
     } else if (response.statusCode == 404) {
       throw ApiException('Resource not found.', 404);

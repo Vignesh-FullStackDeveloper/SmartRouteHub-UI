@@ -49,7 +49,35 @@ class _DriverManagementScreenState extends State<DriverManagementScreen>
       _isLoading = true;
     });
     try {
-      final drivers = await _driverService.getDrivers();
+      List<DriverUser> drivers = [];
+      try {
+        drivers = await _driverService.getDrivers();
+      } catch (driverError) {
+        // Handle driver loading error with helpful message
+        if (mounted) {
+          final errorMsg = driverError.toString();
+          if (errorMsg.contains('is_active') || errorMsg.contains('Undefined column')) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Warning: Could not load drivers. Backend database schema issue detected. '
+                  'Please check backend: users table missing is_active column.',
+                ),
+                duration: Duration(seconds: 5),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error loading drivers: ${driverError.toString()}'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+      
       final buses = await _busService.getBuses();
       final routes = await _routeService.getRoutes();
       if (!mounted) return;

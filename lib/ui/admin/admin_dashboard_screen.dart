@@ -15,7 +15,8 @@ import '../../core/utils/permission_checker.dart';
 import '../../core/constants/permissions.dart';
 import 'student_management_screen.dart';
 import 'driver_management_screen.dart';
-import 'bus_route_management_screen.dart';
+import 'bus_management_screen.dart';
+import 'route_management_screen.dart';
 import 'live_monitoring_screen.dart';
 import 'users_roles_permissions_screen.dart';
 import '../profile/profile_screen.dart';
@@ -455,22 +456,39 @@ class AdminDashboardScreen extends StatelessWidget {
           );
         }
 
-        // Bus & Route Management - requires any bus or route permission
-        if (PermissionChecker.hasAnyPermission(
-                user, Permissions.busManagement) ||
-            PermissionChecker.hasAnyPermission(
-                user, Permissions.routeManagement)) {
+        // Bus Management - requires bus permission
+        if (PermissionChecker.hasAnyPermission(user, Permissions.busManagement)) {
           actions.add(
             _buildActionCard(
               context,
-              'Bus & Route Management',
-              Icons.map,
+              'Bus Management',
+              Icons.directions_bus,
               Colors.orange,
               () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const BusRouteManagementScreen(),
+                    builder: (context) => const BusManagementScreen(),
+                  ),
+                );
+              },
+            ),
+          );
+        }
+
+        // Route Management - requires route permission
+        if (PermissionChecker.hasAnyPermission(user, Permissions.routeManagement)) {
+          actions.add(
+            _buildActionCard(
+              context,
+              'Route Management',
+              Icons.route,
+              Colors.deepOrange,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RouteManagementScreen(),
                   ),
                 );
               },

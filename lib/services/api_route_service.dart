@@ -89,6 +89,7 @@ class ApiRouteService {
     int? estimatedDurationMinutes,
     double? totalDistanceKm,
     String? routePolyline,
+    String? assignedBusId,
     List<Stop>? stops,
   }) async {
     try {
@@ -110,6 +111,9 @@ class ApiRouteService {
       }
       if (routePolyline != null) {
         body['route_polyline'] = routePolyline;
+      }
+      if (assignedBusId != null) {
+        body['assigned_bus_id'] = assignedBusId;
       }
       if (stops != null) {
         body['stops'] = stops.map((s) => {
@@ -165,12 +169,38 @@ class ApiRouteService {
             .toList() ??
         [];
 
+    // Parse time strings (can be "HH:MM:SS" or full ISO datetime)
+    DateTime parseTimeString(String timeStr) {
+      try {
+        // If it's just a time string like "19:00:00", combine with today's date
+        if (timeStr.contains(':') && !timeStr.contains('T') && !timeStr.contains('-')) {
+          final parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            final now = DateTime.now();
+            return DateTime(
+              now.year,
+              now.month,
+              now.day,
+              int.parse(parts[0]),
+              int.parse(parts[1]),
+              parts.length > 2 ? int.parse(parts[2]) : 0,
+            );
+          }
+        }
+        // Otherwise, parse as full datetime
+        return DateTime.parse(timeStr);
+      } catch (e) {
+        // Fallback: try parsing as-is
+        return DateTime.parse(timeStr);
+      }
+    }
+
     return Route(
       id: data['id'] as String,
       name: data['name'] as String,
       organizationId: data['organization_id'] as String? ?? '',
-      startTime: DateTime.parse(data['start_time'] as String),
-      endTime: DateTime.parse(data['end_time'] as String),
+      startTime: parseTimeString(data['start_time'] as String),
+      endTime: parseTimeString(data['end_time'] as String),
       assignedBusId: data['assigned_bus_id'] as String?,
       stops: stops,
     );
