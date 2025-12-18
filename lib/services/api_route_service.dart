@@ -64,7 +64,6 @@ class ApiRouteService {
     required String endTime,
     int? estimatedDurationMinutes,
     double? totalDistanceKm,
-    String? assignedBusId,
     String? routePolyline,
     List<Stop>? stops,
   }) async {
@@ -79,7 +78,6 @@ class ApiRouteService {
             if (estimatedDurationMinutes != null)
               'estimated_duration_minutes': estimatedDurationMinutes,
             if (totalDistanceKm != null) 'total_distance_km': totalDistanceKm,
-            if (assignedBusId != null) 'assigned_bus_id': assignedBusId,
             if (routePolyline != null) 'route_polyline': routePolyline,
             if (stops != null)
               'stops': stops.map((s) => {
@@ -115,7 +113,6 @@ class ApiRouteService {
     int? estimatedDurationMinutes,
     double? totalDistanceKm,
     String? routePolyline,
-    String? assignedBusId,
     List<Stop>? stops,
   }) async {
     try {
@@ -137,9 +134,6 @@ class ApiRouteService {
       }
       if (routePolyline != null) {
         body['route_polyline'] = routePolyline;
-      }
-      if (assignedBusId != null) {
-        body['assigned_bus_id'] = assignedBusId;
       }
       if (stops != null) {
         body['stops'] = stops.map((s) => {

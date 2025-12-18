@@ -449,15 +449,28 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
         TextEditingController(text: student?.classGrade ?? '');
     final sectionController =
         TextEditingController(text: student?.section ?? '');
-    final parentContactController =
-        TextEditingController(text: student?.parentContact ?? '');
-    // Only set selectedRouteId if it exists in the lists and is not empty
+    
+    // Find selected waypoint (stop) from student's pickup point or route
+    String? selectedWaypointId;
     String? selectedRouteId;
-    final studentRouteId = student?.assignedRouteId;
-    if (studentRouteId != null && 
-        studentRouteId.isNotEmpty &&
-        _routes.any((route) => route.id == studentRouteId)) {
-      selectedRouteId = studentRouteId;
+    String? selectedBusId;
+    
+    // If student has a pickup point, find the corresponding waypoint
+    if (student?.pickupPointId != null && student!.pickupPointId!.isNotEmpty) {
+      for (final route in _routes) {
+        try {
+          final stop = route.stops.firstWhere(
+            (s) => s.id == student.pickupPointId,
+          );
+          selectedWaypointId = stop.id;
+          selectedRouteId = route.id;
+          selectedBusId = route.assignedBusId;
+          break;
+        } catch (e) {
+          // Stop not found in this route, continue searching
+          continue;
+        }
+      }
     }
     // Set selected parent ID
     String? selectedParentId;
@@ -474,25 +487,31 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Container(
-          height: MediaQuery.of(context).size.height * 0.9,
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 16),
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(3),
+        builder: (context, setDialogState) {
+          // State variables for waypoint selection
+          String? currentSelectedWaypointId = selectedWaypointId;
+          String? currentSelectedRouteId = selectedRouteId;
+          String? currentSelectedBusId = selectedBusId;
+          
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.9,
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 16),
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
+                Padding(
+                  padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
                     Expanded(
@@ -510,15 +529,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                     ),
                   ],
                 ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                         TextFormField(
                           controller: nameController,
                           decoration: const InputDecoration(
@@ -549,17 +568,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                           ),
                           validator: (value) =>
                               Validators.validateRequired(value, 'Section'),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: parentContactController,
-                          decoration: const InputDecoration(
-                            labelText: 'Parent Contact',
-                            prefixIcon: Icon(Icons.phone),
-                            hintText: '+1234567890',
-                          ),
-                          keyboardType: TextInputType.phone,
-                          validator: Validators.validatePhone,
                         ),
                         const SizedBox(height: 16),
                         Builder(
@@ -610,40 +618,124 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                         const SizedBox(height: 16),
                         Builder(
                           builder: (context) {
-                            // Build items list
-                            final routeItems = <DropdownMenuItem<String?>>[
+                            // Collect all waypoints (stops) from all routes
+                            final waypointItems = <DropdownMenuItem<String?>>[
                               const DropdownMenuItem<String?>(
                                 value: null,
                                 child: Text('None'),
                               ),
-                              ..._routes
-                                  .where((route) => route.id.isNotEmpty)
-                                  .map((route) => DropdownMenuItem<String?>(
-                                        value: route.id,
-                                        child: Text(route.name),
-                                      )),
                             ];
                             
-                            // Ensure selectedRouteId matches an item in the list
-                            final validRouteId = routeItems.any((item) => item.value == selectedRouteId)
-                                ? selectedRouteId
+                            // Create a map to track which route and bus each waypoint belongs to
+                            final waypointRouteMap = <String, String>{}; // waypointId -> routeId
+                            final waypointBusMap = <String, String?>{}; // waypointId -> busId
+                            
+                            for (final route in _routes) {
+                              for (final stop in route.stops) {
+                                if (stop.id.isNotEmpty) {
+                                  waypointItems.add(
+                                    DropdownMenuItem<String?>(
+                                      value: stop.id,
+                                      child: Text(stop.name),
+                                    ),
+                                  );
+                                  waypointRouteMap[stop.id] = route.id;
+                                  waypointBusMap[stop.id] = route.assignedBusId;
+                                }
+                              }
+                            }
+                            
+                            // Ensure currentSelectedWaypointId matches an item in the list
+                            final validWaypointId = waypointItems.any((item) => item.value == currentSelectedWaypointId)
+                                ? currentSelectedWaypointId
                                 : null;
                             
                             return DropdownButtonFormField<String?>(
-                              value: validRouteId,
+                              value: validWaypointId,
                               decoration: const InputDecoration(
-                                labelText: 'Assigned Route',
-                                prefixIcon: Icon(Icons.route),
+                                labelText: 'Pickup Waypoint',
+                                prefixIcon: Icon(Icons.location_on),
+                                helperText: 'Select a waypoint to automatically assign route and bus',
                               ),
-                              items: routeItems,
+                              items: waypointItems,
                               onChanged: (value) {
                                 setDialogState(() {
-                                  selectedRouteId = value;
+                                  currentSelectedWaypointId = value;
+                                  // Auto-assign route and bus based on selected waypoint
+                                  if (value != null && waypointRouteMap.containsKey(value)) {
+                                    currentSelectedRouteId = waypointRouteMap[value];
+                                    currentSelectedBusId = waypointBusMap[value];
+                                  } else {
+                                    currentSelectedRouteId = null;
+                                    currentSelectedBusId = null;
+                                  }
+                                  // Update outer scope variables
+                                  selectedWaypointId = currentSelectedWaypointId;
+                                  selectedRouteId = currentSelectedRouteId;
+                                  selectedBusId = currentSelectedBusId;
                                 });
                               },
                             );
                           },
                         ),
+                        if (currentSelectedRouteId != null) ...[
+                          const SizedBox(height: 8),
+                          Builder(
+                            builder: (context) {
+                              try {
+                                final route = _routes.firstWhere((r) => r.id == currentSelectedRouteId);
+                                Bus? bus;
+                                if (currentSelectedBusId != null) {
+                                  try {
+                                    bus = _buses.firstWhere((b) => b.id == currentSelectedBusId);
+                                  } catch (e) {
+                                    bus = null;
+                                  }
+                                }
+                                
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.blue.shade200),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Route: ${route.name}',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.blue.shade900,
+                                              ),
+                                            ),
+                                            if (bus != null)
+                                              Text(
+                                                'Bus: ${bus.busNumber}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.blue.shade700,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              } catch (e) {
+                                return const SizedBox.shrink();
+                              }
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         SwitchListTile(
                           title: const Text('Active Status'),
@@ -683,13 +775,20 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                               return;
                             }
                             try {
+                              // Get parent contact from selected parent
+                              final selectedParent = _parents.firstWhere(
+                                (p) => p.id == selectedParentId,
+                              );
+                              final parentContact = selectedParent.phone ?? selectedParent.email;
+                              
                               if (student == null) {
                                 await _studentService.createStudent(
                                   name: nameController.text,
                                   classGrade: classController.text,
                                   section: sectionController.text,
-                                  parentContact: parentContactController.text,
+                                  parentContact: parentContact,
                                   parentId: selectedParentId!,
+                                  pickupPointId: selectedWaypointId,
                                   assignedRouteId: selectedRouteId,
                                   isActive: isActive,
                                 );
@@ -699,8 +798,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                                   name: nameController.text,
                                   classGrade: classController.text,
                                   section: sectionController.text,
-                                  parentContact: parentContactController.text,
+                                  parentContact: parentContact,
                                   parentId: selectedParentId!,
+                                  pickupPointId: selectedWaypointId,
                                   assignedRouteId: selectedRouteId,
                                   isActive: isActive,
                                 );
@@ -739,11 +839,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                     ],
                   ),
                 ),
+                ),
               ),
+              ],
             ),
-          ],
-        ),
-      ),
+          );
+        },
       ),
     );
   }

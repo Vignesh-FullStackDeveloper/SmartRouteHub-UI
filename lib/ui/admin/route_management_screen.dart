@@ -432,16 +432,6 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
         ? TimeOfDay.fromDateTime(route.endTime)
         : const TimeOfDay(hour: 8, minute: 30);
     
-    // Only set selectedBusId if it exists in the lists and is not empty
-    String? selectedBusId;
-    final routeBusId = route?.assignedBusId;
-    if (routeBusId != null && 
-        routeBusId is String &&
-        routeBusId.trim().isNotEmpty &&
-        _buses.any((bus) => bus.id.trim().isNotEmpty && bus.id == routeBusId)) {
-      selectedBusId = routeBusId.trim();
-    }
-    
     // Store selected stops from map picker
     List<Stop> selectedStops = route?.stops ?? [];
 
@@ -546,60 +536,6 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        Builder(
-                          builder: (context) {
-                            // Build items list, filtering out empty IDs and ensuring uniqueness
-                            final validBuses = _buses.where((bus) => 
-                                bus.id != null && 
-                                bus.id.trim().isNotEmpty
-                            ).toList();
-                            
-                            final busIds = <String>{};
-                            final busItems = <DropdownMenuItem<String?>>[
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('None'),
-                              ),
-                              ...validBuses
-                                  .where((bus) {
-                                    // Ensure no duplicate IDs
-                                    if (busIds.contains(bus.id)) return false;
-                                    busIds.add(bus.id);
-                                    return true;
-                                  })
-                                  .map((bus) => DropdownMenuItem<String?>(
-                                        value: bus.id.trim(),
-                                        child: Text(bus.busNumber),
-                                      )),
-                            ];
-                            
-                            // Ensure selectedBusId matches an item in the list
-                            String? validBusId;
-                            final busIdValue = selectedBusId;
-                            if (busIdValue != null && busIdValue.trim().isNotEmpty) {
-                              final trimmedId = busIdValue.trim();
-                              if (busItems.any((item) => item.value == trimmedId)) {
-                                validBusId = trimmedId;
-                              }
-                            }
-                            
-                            return DropdownButtonFormField<String?>(
-                              value: validBusId,
-                              decoration: const InputDecoration(
-                                labelText: 'Assigned Bus',
-                                prefixIcon: Icon(Icons.directions_bus),
-                              ),
-                              items: busItems,
-                              onChanged: (value) {
-                                setModalState(() {
-                                  // Ensure we never set empty string, only null or valid value
-                                  selectedBusId = (value != null && value.trim().isEmpty) ? null : value;
-                                });
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
                         OutlinedButton.icon(
                           onPressed: () async {
                             final stops = await Navigator.push<List<Stop>>(
@@ -648,7 +584,6 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                                     name: nameController.text,
                                     startTime: startTimeStr,
                                     endTime: endTimeStr,
-                                    assignedBusId: selectedBusId,
                                     stops: selectedStops.isNotEmpty ? selectedStops : null,
                                   );
                                 } else {
@@ -657,7 +592,6 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                                     name: nameController.text,
                                     startTime: startTimeStr,
                                     endTime: endTimeStr,
-                                    assignedBusId: selectedBusId,
                                     stops: selectedStops.isNotEmpty ? selectedStops : null,
                                   );
                                 }

@@ -20,6 +20,9 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   LatLng? _startPoint;
   LatLng? _endPoint;
   final List<LatLng> _waypoints = [];
+  String? _startPointName;
+  String? _endPointName;
+  final List<String> _waypointNames = [];
   final Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
   
@@ -104,6 +107,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       // Step 1: Select start point
       setState(() {
         _startPoint = location;
+        _startPointName = address;
         _updateMarkers();
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,6 +117,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       // Step 2: Select end point
       setState(() {
         _endPoint = location;
+        _endPointName = address;
         _routeCalculated = false; // Reset route when end point changes
         _polylines = {}; // Clear existing route
         _updateMarkers();
@@ -124,6 +129,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       // Step 3: Add waypoints
       setState(() {
         _waypoints.add(location);
+        _waypointNames.add(address);
         _routeCalculated = false; // Reset route when waypoint is added
         _polylines = {}; // Clear existing route
         _updateMarkers();
@@ -371,6 +377,9 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       _startPoint = null;
       _endPoint = null;
       _waypoints.clear();
+      _startPointName = null;
+      _endPointName = null;
+      _waypointNames.clear();
       _routeCalculated = false;
       _updateMarkers();
       _polylines = {};
@@ -380,6 +389,9 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   void _removeWaypoint(int index) {
     setState(() {
       _waypoints.removeAt(index);
+      if (index < _waypointNames.length) {
+        _waypointNames.removeAt(index);
+      }
       _routeCalculated = false; // Reset route when waypoint is removed
       _polylines = {}; // Clear existing route
       _updateMarkers();
@@ -393,7 +405,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     if (_startPoint != null) {
       stops.add(Stop(
         id: 'start',
-        name: 'Start Point',
+        name: _startPointName ?? 'Start Point',
         latitude: _startPoint!.latitude,
         longitude: _startPoint!.longitude,
         order: order++,
@@ -403,7 +415,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     for (int i = 0; i < _waypoints.length; i++) {
       stops.add(Stop(
         id: 'waypoint_$i',
-        name: 'Waypoint ${i + 1}',
+        name: (i < _waypointNames.length) ? _waypointNames[i] : 'Waypoint ${i + 1}',
         latitude: _waypoints[i].latitude,
         longitude: _waypoints[i].longitude,
         order: order++,
@@ -413,7 +425,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     if (_endPoint != null) {
       stops.add(Stop(
         id: 'end',
-        name: 'End Point',
+        name: _endPointName ?? 'End Point',
         latitude: _endPoint!.latitude,
         longitude: _endPoint!.longitude,
         order: order++,
