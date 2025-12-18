@@ -14,7 +14,7 @@ class AppConfig {
 
   // Local development configuration
   static const AppConfig local = AppConfig(
-    baseUrl: 'http://localhost:4000',
+    baseUrl: 'http://localhost:3000',
     apiVersion: 'api',
     isProduction: false,
     enableLogging: true,

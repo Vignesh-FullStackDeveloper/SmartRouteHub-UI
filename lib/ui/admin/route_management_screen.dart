@@ -4,11 +4,13 @@ import '../../services/api_bus_service.dart';
 import '../../services/api_route_service.dart';
 import '../../models/bus.dart';
 import '../../models/route.dart' as models;
+import '../../models/stop.dart';
 import '../../core/utils/validators.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../core/utils/permission_checker.dart';
 import '../../core/constants/permissions.dart';
+import 'route_picker_screen.dart';
 
 /// Route management screen with modern UI
 class RouteManagementScreen extends StatefulWidget {
@@ -439,6 +441,9 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
         _buses.any((bus) => bus.id.trim().isNotEmpty && bus.id == routeBusId)) {
       selectedBusId = routeBusId.trim();
     }
+    
+    // Store selected stops from map picker
+    List<Stop> selectedStops = route?.stops ?? [];
 
     showModalBottomSheet(
       context: context,
@@ -594,7 +599,42 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                             );
                           },
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final stops = await Navigator.push<List<Stop>>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RoutePickerScreen(),
+                              ),
+                            );
+                            if (stops != null && stops.isNotEmpty) {
+                              setModalState(() {
+                                selectedStops = stops;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${stops.length} stops selected from map'),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.map),
+                          label: const Text('Choose Route in Map'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                        if (selectedStops.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Selected ${selectedStops.length} stops from map',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.green,
+                                ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
@@ -609,6 +649,7 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                                     startTime: startTimeStr,
                                     endTime: endTimeStr,
                                     assignedBusId: selectedBusId,
+                                    stops: selectedStops.isNotEmpty ? selectedStops : null,
                                   );
                                 } else {
                                   await _routeService.updateRoute(
@@ -617,6 +658,7 @@ class _RouteManagementScreenState extends State<RouteManagementScreen> {
                                     startTime: startTimeStr,
                                     endTime: endTimeStr,
                                     assignedBusId: selectedBusId,
+                                    stops: selectedStops.isNotEmpty ? selectedStops : null,
                                   );
                                 }
                                 if (mounted) {

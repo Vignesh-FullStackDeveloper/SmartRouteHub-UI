@@ -14,12 +14,30 @@
   <title>School Bus Tracker</title>
   <link rel="manifest" href="manifest.json">
   <script>
-    // Google Maps API Key - Replace with your actual key
-    // Get your API key from: https://console.cloud.google.com/google/maps-apis
-    var googleMapsApiKey = "YOUR_GOOGLE_MAPS_API_KEY";
+    // Google Maps API Key
+    var googleMapsApiKey = "AIzaSyBnk3hkihL2Yzqv6U_rnvyQcnKMUkAuxrs";
+    var googleMapsLoaded = false;
+    
+    // Callback function when Google Maps API is loaded
+    function initGoogleMaps() {
+      googleMapsLoaded = true;
+      console.log('Google Maps API loaded successfully');
+      tryInitFlutter();
+    }
+    
+    // Error handler for Maps API loading
+    function handleMapsError() {
+      console.error('Failed to load Google Maps API');
+      // Still try to init Flutter even if Maps fails
+      googleMapsLoaded = true;
+      tryInitFlutter();
+    }
   </script>
-  <!-- Load Google Maps API synchronously before Flutter app starts -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&loading=async"></script>
+  <!-- Load Google Maps API with callback -->
+  <script 
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBnk3hkihL2Yzqv6U_rnvyQcnKMUkAuxrs&callback=initGoogleMaps"
+    onerror="handleMapsError()">
+  </script>
   <style>
     body {
       margin: 0;
@@ -44,10 +62,32 @@
     <div class="loading-text">Loading...</div>
   </div>
   <script>
-    {{flutter_js}}
-    {{flutter_build_config}}
+    var flutterInitialized = false;
     
-    window.addEventListener('load', function(ev) {
+    // Try to initialize Flutter when both DOM and Maps API are ready
+    function tryInitFlutter() {
+      if (flutterInitialized) return;
+      
+      // Check if DOM is ready
+      if (document.readyState !== 'complete') {
+        return;
+      }
+      
+      // Check if Google Maps is loaded (or at least attempted)
+      if (!googleMapsLoaded) {
+        return;
+      }
+      
+      // Verify Google Maps API is actually available
+      if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+        console.warn('Google Maps API not available, but continuing with Flutter initialization');
+      }
+      
+      flutterInitialized = true;
+      
+      {{flutter_js}}
+      {{flutter_build_config}}
+      
       // Check if service worker is available
       var serviceWorkerSettings = null;
       if (typeof serviceWorkerVersion !== 'undefined') {
@@ -59,7 +99,18 @@
       _flutter.loader.load({
         serviceWorkerSettings: serviceWorkerSettings,
       });
-    });
+    }
+    
+    // Try to init when DOM is ready
+    if (document.readyState === 'complete') {
+      tryInitFlutter();
+    } else {
+      window.addEventListener('load', tryInitFlutter);
+      document.addEventListener('DOMContentLoaded', tryInitFlutter);
+    }
+    
+    // Fallback: try after a short delay
+    setTimeout(tryInitFlutter, 1000);
   </script>
 </body>
 </html>

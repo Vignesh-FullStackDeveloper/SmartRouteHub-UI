@@ -20,6 +20,9 @@ class AppConstants {
   static const double defaultLatitude = 28.6139; // Default location (Delhi)
   static const double defaultLongitude = 77.2090;
   
+  // Google Maps API Key
+  static const String googleMapsApiKey = 'AIzaSyBnk3hkihL2Yzqv6U_rnvyQcnKMUkAuxrs';
+  
   // Notification settings
   static const int notificationRefreshInterval = 30; // seconds
   
