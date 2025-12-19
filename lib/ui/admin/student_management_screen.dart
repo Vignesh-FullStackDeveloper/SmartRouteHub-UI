@@ -377,21 +377,70 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                           ),
                         ],
                       ),
-                      if (student.assignedBusId != null) ...[
+                      if (student.assignedBusId != null || student.assignedRouteId != null) ...[
                         const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(Icons.directions_bus, size: 16, color: Colors.grey[600]),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Bus: ${student.assignedBusId}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                        Builder(
+                          builder: (context) {
+                            // Find bus by ID to get bus number
+                            String? busNumber;
+                            String? routeName;
+                            
+                            if (student.assignedBusId != null) {
+                              try {
+                                final bus = _buses.firstWhere(
+                                  (b) => b.id == student.assignedBusId,
+                                );
+                                busNumber = bus.busNumber;
+                              } catch (e) {
+                                busNumber = student.assignedBusId;
+                              }
+                            }
+                            
+                            if (student.assignedRouteId != null) {
+                              try {
+                                final route = _routes.firstWhere(
+                                  (r) => r.id == student.assignedRouteId,
+                                );
+                                routeName = route.name;
+                              } catch (e) {
+                                routeName = student.assignedRouteId;
+                              }
+                            }
+                            
+                            return Row(
+                              children: [
+                                if (busNumber != null) ...[
+                                  Icon(Icons.directions_bus, size: 16, color: Colors.grey[600]),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    busNumber,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                                if (busNumber != null && routeName != null) ...[
+                                  const SizedBox(width: 12),
+                                ],
+                                if (routeName != null) ...[
+                                  Icon(Icons.route, size: 16, color: Colors.grey[600]),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      routeName,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ],
@@ -640,7 +689,23 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                                     ),
                                   );
                                   waypointRouteMap[stop.id] = route.id;
-                                  waypointBusMap[stop.id] = route.assignedBusId;
+                                  
+                                  // Check bus assignment in both directions:
+                                  // 1. Route has assignedBusId
+                                  // 2. Any bus has assignedRouteId matching this route
+                                  String? busId = route.assignedBusId;
+                                  if (busId == null) {
+                                    // Check if any bus is assigned to this route
+                                    try {
+                                      final assignedBus = _buses.firstWhere(
+                                        (bus) => bus.assignedRouteId == route.id,
+                                      );
+                                      busId = assignedBus.id;
+                                    } catch (e) {
+                                      busId = null;
+                                    }
+                                  }
+                                  waypointBusMap[stop.id] = busId;
                                 }
                               }
                             }
@@ -658,22 +723,246 @@ class _StudentManagementScreenState extends State<StudentManagementScreen>
                                 helperText: 'Select a waypoint to automatically assign route and bus',
                               ),
                               items: waypointItems,
-                              onChanged: (value) {
-                                setDialogState(() {
-                                  currentSelectedWaypointId = value;
-                                  // Auto-assign route and bus based on selected waypoint
-                                  if (value != null && waypointRouteMap.containsKey(value)) {
-                                    currentSelectedRouteId = waypointRouteMap[value];
-                                    currentSelectedBusId = waypointBusMap[value];
-                                  } else {
+                              onChanged: (value) async {
+                                if (value != null && waypointRouteMap.containsKey(value)) {
+                                  // Find the selected waypoint name
+                                  String? waypointName;
+                                  for (final route in _routes) {
+                                    final stop = route.stops.firstWhere(
+                                      (s) => s.id == value,
+                                      orElse: () => route.stops.first,
+                                    );
+                                    if (stop.id == value) {
+                                      waypointName = stop.name;
+                                      break;
+                                    }
+                                  }
+                                  
+                                  // Find route and bus
+                                  final routeId = waypointRouteMap[value];
+                                  final busId = waypointBusMap[value];
+                                  
+                                  try {
+                                    final route = _routes.firstWhere((r) => r.id == routeId);
+                                    Bus? bus;
+                                    if (busId != null) {
+                                      try {
+                                        bus = _buses.firstWhere((b) => b.id == busId);
+                                      } catch (e) {
+                                        bus = null;
+                                      }
+                                    } else {
+                                      // Double-check: look for bus assigned to this route
+                                      try {
+                                        bus = _buses.firstWhere((b) => b.assignedRouteId == routeId);
+                                      } catch (e) {
+                                        bus = null;
+                                      }
+                                    }
+                                    
+                                    // Show confirmation dialog
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        title: Row(
+                                          children: [
+                                            Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary),
+                                            const SizedBox(width: 8),
+                                            const Expanded(
+                                              child: Text('Pickup Point Selected'),
+                                            ),
+                                          ],
+                                        ),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade50,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.blue.shade200),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.place, size: 20, color: Colors.blue.shade700),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      waypointName ?? 'Unknown Location',
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Colors.blue.shade900,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.shade50,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.green.shade200),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(Icons.route, size: 20, color: Colors.green.shade700),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Route Assigned:',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w500,
+                                                          color: Colors.green.shade700,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    route.name,
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.green.shade900,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (bus != null) ...[
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange.shade50,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: Colors.orange.shade200),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Icon(Icons.directions_bus, size: 20, color: Colors.orange.shade700),
+                                                        const SizedBox(width: 8),
+                                                        Text(
+                                                          'Bus Assigned:',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.w500,
+                                                            color: Colors.orange.shade700,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      bus.busNumber,
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.orange.shade900,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              const SizedBox(height: 12),
+                                              Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey.shade100,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: Colors.grey.shade300),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.info_outline, size: 20, color: Colors.grey.shade600),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        'No bus assigned to this route',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.grey.shade700,
+                                                          fontStyle: FontStyle.italic,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Theme.of(context).colorScheme.primary,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            child: const Text('Confirm'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    
+                                    if (confirmed == true) {
+                                      setDialogState(() {
+                                        currentSelectedWaypointId = value;
+                                        currentSelectedRouteId = routeId;
+                                        currentSelectedBusId = busId;
+                                        // Update outer scope variables
+                                        selectedWaypointId = currentSelectedWaypointId;
+                                        selectedRouteId = currentSelectedRouteId;
+                                        selectedBusId = currentSelectedBusId;
+                                      });
+                                    }
+                                  } catch (e) {
+                                    // If error, still allow selection but show error
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Error: ${e.toString()}')),
+                                      );
+                                    }
+                                    setDialogState(() {
+                                      currentSelectedWaypointId = value;
+                                      currentSelectedRouteId = routeId;
+                                      currentSelectedBusId = busId;
+                                      selectedWaypointId = currentSelectedWaypointId;
+                                      selectedRouteId = currentSelectedRouteId;
+                                      selectedBusId = currentSelectedBusId;
+                                    });
+                                  }
+                                } else {
+                                  // No waypoint selected
+                                  setDialogState(() {
+                                    currentSelectedWaypointId = value;
                                     currentSelectedRouteId = null;
                                     currentSelectedBusId = null;
-                                  }
-                                  // Update outer scope variables
-                                  selectedWaypointId = currentSelectedWaypointId;
-                                  selectedRouteId = currentSelectedRouteId;
-                                  selectedBusId = currentSelectedBusId;
-                                });
+                                    selectedWaypointId = currentSelectedWaypointId;
+                                    selectedRouteId = currentSelectedRouteId;
+                                    selectedBusId = currentSelectedBusId;
+                                  });
+                                }
                               },
                             );
                           },
